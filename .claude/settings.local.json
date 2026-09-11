@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/prototype/end-to-end/bundle.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

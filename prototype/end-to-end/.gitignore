@@ -1,0 +1,4 @@
+node_modules/
+bundle.mjs
+bundle.min.mjs
+e2e.log

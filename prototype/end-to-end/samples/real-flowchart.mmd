@@ -1,0 +1,9 @@
+flowchart TD
+    A[Fechar Chrome + WhatsApp] --> B[18-ajustes-usuario.ps1<br/>sem admin]
+    B --> B1[Widgets off · destaques off<br/>cache WhatsApp · Temp · npm/pnpm]
+    B1 --> C[17-turbo-admin.ps1<br/>como admin]
+    C --> C1[Fast Startup + hiberfil menor<br/>pagefile 6 GB · VPNs Manual<br/>tarefas NVIDIA off · compacta VHDX<br/>TRIM · DISM]
+    C1 --> D[Reiniciar]
+    D --> E{Docker/WSL subiu?}
+    E -- sim --> F[Pronto. Rodar 17 de novo<br/>só pra ler tempos de boot]
+    E -- não --> G[relatorio\17-rollback_*.ps1<br/>como admin]

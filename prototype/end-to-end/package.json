@@ -1,0 +1,18 @@
+{
+  "name": "mermaid-for-claude-end-to-end-prototype",
+  "version": "1.0.0",
+  "description": "PROTOTYPE - throwaway, wayfinder ticket #7",
+  "main": "hook.mjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "samples": "node render-samples.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "beautiful-mermaid": "^1.1.3",
+    "esbuild": "^0.28.2"
+  }
+}
