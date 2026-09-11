@@ -30,8 +30,12 @@ A mermaid diagram type the renderer can draw.
 **Unsupported type**:
 A mermaid diagram type no renderer in the plugin can draw. Produces a notice instead of a diagram.
 
+**Header**:
+The one-line label printed above each diagram or notice, naming the plugin, the block's position in the reply and its type.
+_Avoid_: title, caption, label
+
 **Notice**:
-The one-line message printed in place of a diagram that could not be rendered.
+The one-line message printed instead of a diagram: unsupported type, render failure, or missing runtime.
 _Avoid_: warning, error, fallback message
 
 **Context line**:
