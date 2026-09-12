@@ -28,6 +28,10 @@ _Avoid_: library renderer, upstream renderer, main renderer
 A renderer written in this plugin for one diagram type. Draws with rows, bars and trees instead of geometry.
 _Avoid_: custom renderer, fallback renderer, hand-rolled renderer
 
+**Dispatcher**:
+The part of the hook that reads a diagram block's header, strips front matter and directives, and picks the renderer or the notice.
+_Avoid_: router, parser, front-end
+
 **Trigger**:
 The Claude Code event that starts rendering. v1: the `Stop` hook.
 _Avoid_: listener, watcher, interceptor
