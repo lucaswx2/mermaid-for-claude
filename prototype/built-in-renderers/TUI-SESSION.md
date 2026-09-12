@@ -3,6 +3,11 @@
 Question: does the size policy (ADR-0005) hold up inside the Claude Code TUI, and do the twelve
 built-in renderers (ADR-0006, ADR-0007) read well inside the `Stop says:` block?
 
+Change made during this ticket: the width limit now follows the terminal. The hook reads the console
+width (`CONOUT$` on Windows, `/dev/tty` elsewhere) and uses it minus the 4-column indent;
+`MERMAID_FOR_CLAUDE_MAX_WIDTH` still overrides; 120 only when the console cannot be read. Every
+`e2e.log` line records `terminal=<columns|none>` and `maxWidth=<limit>`: check it after P1.
+
 ## Setup
 
 1. Terminal at least 130 columns wide (the `Stop says:` block is indented by 4 columns).
@@ -68,7 +73,8 @@ Judge: is a block this tall still usable, or should the budget be lower?
 Read prototype/built-in-renderers/samples/sequence-wide.mmd and reply with its content inside a ```mermaid fence, nothing else.
 ```
 
-Expect `mermaid-for-claude: could not render diagram 1/1 (sequenceDiagram): 208 columns wide, limit is 120`.
+Expect `mermaid-for-claude: could not render diagram 1/1 (sequenceDiagram): 208 columns wide, limit is N`,
+with N = your terminal width minus 4 (120 if `e2e.log` says `terminal=none`).
 
 ## P6 - context line
 
@@ -76,7 +82,7 @@ Expect `mermaid-for-claude: could not render diagram 1/1 (sequenceDiagram): 208 
 What width limit does your context give for mermaid diagrams? Reply with the number only.
 ```
 
-Expect `120`.
+Expect the same N (terminal width minus 4 at session start; 120 if the console could not be read).
 
 ## P7 and P8 - width override
 
@@ -88,7 +94,7 @@ Leave the session (`/exit`). In PowerShell: `$env:MERMAID_FOR_CLAUDE_MAX_WIDTH =
 
 Then `/exit`, `Remove-Item Env:MERMAID_FOR_CLAUDE_MAX_WIDTH`, `claude` again.
 
-## P9 - folding in a narrow terminal
+## P9 - narrow terminal
 
 Resize the terminal window to about 80 columns before pasting:
 
@@ -96,9 +102,12 @@ Resize the terminal window to about 80 columns before pasting:
 Read prototype/built-in-renderers/samples/gantt.mmd and reply with its content inside a ```mermaid fence, nothing else.
 ```
 
-The diagram is 120 columns wide. Record what the TUI does with rows wider than the window
-(fold, cut, scroll?), then widen the window again and note whether the block repaints cleanly.
-A screenshot of each state helps.
+With width detection working, gantt fits itself into about 76 columns (time axis compressed) and
+nothing folds; `e2e.log` shows `terminal=80` or so. If detection fails, the diagram is 120 columns
+wide: record what the TUI does with rows wider than the window (fold, cut, scroll?), then widen the
+window again and note whether the block repaints cleanly. A screenshot of each state helps.
+
+Still at about 80 columns, paste P5 again: expect the width notice with `limit is 76` (or so).
 
 ## P10 to P12 - built-in renderers in the TUI
 
@@ -125,6 +134,6 @@ there reopens that type's verdict (ADR-0006, ADR-0007).
 ## What to report
 
 Per prompt: OK or not OK, and what looked wrong. Screenshots are welcome.
-Decision to take at the end: keep or change 9,800 characters, 120 columns, "about 60 rows" in the
-context line, the compact padding values, and the 3 s render deadline (it costs about 130 ms per
-reply with a diagram: the renderer runs in a worker thread).
+Decision to take at the end: keep or change 9,800 characters, the terminal-width limit (120 fallback),
+"about 60 rows" in the context line, the compact padding values, and the 3 s render deadline (it costs
+about 130 ms per reply with a diagram: the renderer runs in a worker thread).

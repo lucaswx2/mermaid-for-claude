@@ -6,13 +6,17 @@
 // Not production code. Lives on branches prototype/built-in-renderers and prototype/size-policy only.
 // Build: `npm ci && npm run build` -> bundle.mjs. Local run: `npm run samples`. TUI run: see TUI-SESSION.md.
 
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, openSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { WriteStream } from 'node:tty';
 import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 
 const OUTPUT_BUDGET = 9_800;
+// Used only when the console cannot be read (ADR-0005 assumed it never could).
 const DEFAULT_WIDTH = 120;
+// The `Stop says:` block is indented by four columns (ADR-0001).
+const INDENT = 4;
 // Room kept for one closing "diagrams i/N to N/N skipped" line while blocks remain (ADR-0005: the
 // whole payload, notices included, fits the budget; the cap is 10,000 per hook output string).
 const SUMMARY_RESERVE = 140;
@@ -68,8 +72,22 @@ if (!isMainThread) {
   const blocks = extractBlocks(input.last_assistant_message ?? '');
   if (blocks.length === 0) done({});
 
+  // A hook's stdout is a pipe, so process.stdout.columns is never set; the console the TUI draws on still
+  // answers: CONOUT$ on Windows (ConPTY under Windows Terminal), the controlling tty elsewhere. Found in #15.
+  const terminalColumns = () => {
+    try {
+      const stream = new WriteStream(openSync(process.platform === 'win32' ? '\\\\.\\CONOUT$' : '/dev/tty', 'r+'));
+      const { columns } = stream;
+      stream.destroy();
+      return Number.isInteger(columns) && columns > INDENT ? columns : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const terminal = terminalColumns();
   const configuredWidth = Number.parseInt(process.env.MERMAID_FOR_CLAUDE_MAX_WIDTH ?? '', 10);
-  const maxWidth = Number.isInteger(configuredWidth) && configuredWidth > 0 ? configuredWidth : DEFAULT_WIDTH;
+  const maxWidth =
+    Number.isInteger(configuredWidth) && configuredWidth > 0 ? configuredWidth : terminal ? terminal - INDENT : DEFAULT_WIDTH;
   const ascii = process.env.MERMAID_FOR_CLAUDE_ASCII === '1';
   const options = { maxWidth, ascii };
   const budgetReason = `output budget exhausted (${OUTPUT_BUDGET.toLocaleString('en-US')} chars per reply)`;
@@ -174,7 +192,7 @@ if (!isMainThread) {
   process.stdout.write(JSON.stringify({ systemMessage }));
   appendFileSync(
     join(here, 'e2e.log'),
-    `${new Date().toISOString()} blocks=${blocks.length} chars=${systemMessage.length} totalMs=${Date.now() - startedAt} maxWidth=${maxWidth} ascii=${ascii} ${log.join(' ')}\n`,
+    `${new Date().toISOString()} blocks=${blocks.length} chars=${systemMessage.length} totalMs=${Date.now() - startedAt} terminal=${terminal ?? 'none'} maxWidth=${maxWidth} ascii=${ascii} ${log.join(' ')}\n`,
   );
   process.exit(0);
 }
