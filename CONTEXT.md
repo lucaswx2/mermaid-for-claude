@@ -53,3 +53,11 @@ _Avoid_: warning, error, fallback message
 **Context line**:
 The sentence the plugin injects at `SessionStart` telling the model that diagram blocks render inline here.
 _Avoid_: hint, system prompt, nudge
+
+**Output budget**:
+The most text one reply's rendering may add to the terminal, shared by every diagram and notice in that reply. A diagram that does not fit the remaining budget becomes a notice.
+_Avoid_: size cap, char limit, quota
+
+**Width limit**:
+The widest rendered diagram the plugin will show. A wider diagram becomes a notice. Built-in renderers fit inside it; the baseline renderer is measured against it.
+_Avoid_: max width, terminal width, column cap
