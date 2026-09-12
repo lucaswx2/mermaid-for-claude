@@ -1,4 +1,4 @@
-// PROTOTYPE - throwaway. Wayfinder ticket #13. Header dispatcher shared by every renderer (ADR-0004):
+// PROTOTYPE - throwaway. Wayfinder tickets #13 and #14. Header dispatcher shared by every renderer (ADR-0004):
 // strips front matter and %%{init}%% directives, resolves aliases (graph) and suffixes (-beta, -v2),
 // routes to the baseline renderer or a built-in renderer, and turns every failure into a notice reason.
 
@@ -12,6 +12,10 @@ import { renderTimeline } from './renderers/timeline.mjs';
 import { renderKanban } from './renderers/kanban.mjs';
 import { renderPacket } from './renderers/packet.mjs';
 import { renderRadar } from './renderers/radar.mjs';
+import { renderGantt } from './renderers/gantt.mjs';
+import { renderQuadrant } from './renderers/quadrant.mjs';
+import { renderBlockDiagram } from './renderers/block.mjs';
+import { renderTreemap } from './renderers/treemap.mjs';
 
 const baseline = (name, header = name) => ({ name, kind: 'baseline', header });
 const builtin = (name, render) => ({ name, kind: 'builtin', render });
@@ -34,11 +38,10 @@ const TYPES = {
   kanban: builtin('kanban', renderKanban),
   packet: builtin('packet', renderPacket),
   radar: builtin('radar', renderRadar),
-  // M tier, wayfinder #14: notice until their prototype lands.
-  gantt: notice('gantt'),
-  quadrantchart: notice('quadrantChart'),
-  block: notice('block'),
-  treemap: notice('treemap'),
+  gantt: builtin('gantt', renderGantt),
+  quadrantchart: builtin('quadrantChart', renderQuadrant),
+  block: builtin('block', renderBlockDiagram),
+  treemap: builtin('treemap', renderTreemap),
   // Notice-only in v1 (ADR-0004).
   requirementdiagram: notice('requirementDiagram'),
   c4context: notice('C4'),

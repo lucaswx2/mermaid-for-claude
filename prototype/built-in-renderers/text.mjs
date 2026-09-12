@@ -59,12 +59,16 @@ export const glyphs = (ascii) =>
         bar: '#', barEmpty: '.', dot: '*', dotEmpty: 'o', ellipsis: '...',
         commit: 'o', merge: 'M', highlight: '*', reverse: 'x',
         treeTee: '|-- ', treeLast: '`-- ', treeBar: '|   ',
+        barDone: '.', barActive: '=', milestone: '*', vert: ':',
+        arrowRight: '->', arrowLeft: '<-', arrowUp: '^', arrowDown: 'v', edgeArrow: '-->', edgeLine: '---',
       }
     : {
         h: '─', v: '│', tl: '┌', tr: '┐', bl: '└', br: '┘', tj: '┬', bj: '┴', lj: '├', rj: '┤', x: '┼',
         bar: '█', barEmpty: '░', dot: '●', dotEmpty: '○', ellipsis: '…',
         commit: '●', merge: '◆', highlight: '◉', reverse: '⊗',
         treeTee: '├── ', treeLast: '└── ', treeBar: '│   ',
+        barDone: '░', barActive: '▒', milestone: '◆', vert: '┆',
+        arrowRight: '─▶', arrowLeft: '◀─', arrowUp: '▲', arrowDown: '▼', edgeArrow: '──▶', edgeLine: '───',
       };
 
 const JUNCTIONS = {
