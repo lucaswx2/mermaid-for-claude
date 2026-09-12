@@ -1,11 +1,22 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/prototype/built-in-renderers/session-start.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/prototype/built-in-renderers/bundle.mjs\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/prototype/built-in-renderers/stop.sh\"",
             "timeout": 10
           }
         ]

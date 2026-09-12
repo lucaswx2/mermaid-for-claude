@@ -1,7 +1,7 @@
 {
   "name": "mermaid-for-claude-built-in-renderers-prototype",
   "version": "1.0.0",
-  "description": "PROTOTYPE - throwaway, wayfinder ticket #13 (S-tier built-in renderers + dispatcher)",
+  "description": "PROTOTYPE - throwaway, wayfinder tickets #13, #14 and #15 (built-in renderers, dispatcher, size policy in the TUI)",
   "private": true,
   "type": "module",
   "scripts": {

@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant U as User
+    participant W as Web app
+    participant A as API
+    participant D as Database
+    U->>W: submit order
+    W->>A: POST /orders
+    A->>D: insert order
+    D-->>A: id 42
+    A-->>W: 201 Created
+    W-->>U: confirmation
+    A->>A: schedule invoice

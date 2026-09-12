@@ -91,6 +91,12 @@ const withoutAccessibility = (lines) => {
 
 const typeKey = (token) => token.replace(/:$/, '').toLowerCase().replace(/-(beta|v2)$/, '');
 
+// The canonical type name of a block's header, or the raw token when unknown; cheap, no rendering.
+export const typeOf = (source) => {
+  const token = prepare(source).headerLine.split(/\s+/)[0] ?? '';
+  return TYPES[typeKey(token)]?.name ?? (token || 'unknown');
+};
+
 export const renderBlock = (source, { maxWidth, ascii }) => {
   const { headerLine, lines, allLines } = prepare(source);
   const token = headerLine.split(/\s+/)[0] ?? '';
