@@ -6,6 +6,7 @@
 // Not production code. Lives on branches prototype/built-in-renderers and prototype/size-policy only.
 // Build: `npm ci && npm run build` -> bundle.mjs. Local run: `npm run samples`. TUI run: see TUI-SESSION.md.
 
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, openSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { WriteStream } from 'node:tty';
@@ -72,11 +73,18 @@ if (!isMainThread) {
   const blocks = extractBlocks(input.last_assistant_message ?? '');
   if (blocks.length === 0) done({});
 
-  // A hook's stdout is a pipe, so process.stdout.columns is never set; the console the TUI draws on still
-  // answers: CONOUT$ on Windows (ConPTY under Windows Terminal), the controlling tty elsewhere. Found in #15.
-  const terminalColumns = () => {
+  // A hook's stdout is a pipe, so process.stdout.columns is never set. Elsewhere the controlling tty answers
+  // directly. On Windows hook processes get an invisible default console (always 120x30), so the width comes
+  // from the console of the Claude Code process itself: the session start finds that process (console-width.ps1
+  // walks the process tree, about 1.3 s, once) and caches its pid and width; each reply with a diagram then
+  // runs console-width.exe (compiled at session start, about 100 ms) with that pid for the live width, and
+  // falls back to the cached width, then to the default.
+  const sessionId = typeof input.session_id === 'string' ? input.session_id.replace(/[^\w-]/g, '') : '';
+  const cacheDir = join(here, 'cache');
+  let widthSource = 'none';
+  const ttyColumns = () => {
     try {
-      const stream = new WriteStream(openSync(process.platform === 'win32' ? '\\\\.\\CONOUT$' : '/dev/tty', 'r+'));
+      const stream = new WriteStream(openSync('/dev/tty', 'r+'));
       const { columns } = stream;
       stream.destroy();
       return Number.isInteger(columns) && columns > INDENT ? columns : undefined;
@@ -84,7 +92,45 @@ if (!isMainThread) {
       return undefined;
     }
   };
-  const terminal = terminalColumns();
+  const cachedColumns = () => {
+    try {
+      const columns = Number.parseInt(readFileSync(join(cacheDir, `${sessionId}.width`), 'utf8'), 10);
+      return Number.isInteger(columns) && columns > INDENT ? columns : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const cachedClaudePid = () => {
+    try {
+      const pid = Number.parseInt(readFileSync(join(cacheDir, `${sessionId}.pid`), 'utf8'), 10);
+      return Number.isInteger(pid) && pid > 0 ? String(pid) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  // console-width.exe exits with the window width of that process's console, 0 when it has none.
+  const liveColumns = () => {
+    const claudePid = cachedClaudePid();
+    if (!claudePid) return undefined;
+    try {
+      const { status } = spawnSync(join(cacheDir, 'console-width.exe'), [claudePid], { windowsHide: true, timeout: 2_000 });
+      return Number.isInteger(status) && status > INDENT ? status : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const windowsColumns = () => {
+    const live = liveColumns();
+    if (live) {
+      widthSource = 'live';
+      return live;
+    }
+    const cached = cachedColumns();
+    if (cached) widthSource = 'cache';
+    return cached;
+  };
+  const terminal = process.platform === 'win32' ? windowsColumns() : ttyColumns();
+  if (terminal && widthSource === 'none') widthSource = 'tty';
   const configuredWidth = Number.parseInt(process.env.MERMAID_FOR_CLAUDE_MAX_WIDTH ?? '', 10);
   const maxWidth =
     Number.isInteger(configuredWidth) && configuredWidth > 0 ? configuredWidth : terminal ? terminal - INDENT : DEFAULT_WIDTH;
@@ -192,7 +238,7 @@ if (!isMainThread) {
   process.stdout.write(JSON.stringify({ systemMessage }));
   appendFileSync(
     join(here, 'e2e.log'),
-    `${new Date().toISOString()} blocks=${blocks.length} chars=${systemMessage.length} totalMs=${Date.now() - startedAt} terminal=${terminal ?? 'none'} maxWidth=${maxWidth} ascii=${ascii} ${log.join(' ')}\n`,
+    `${new Date().toISOString()} blocks=${blocks.length} chars=${systemMessage.length} totalMs=${Date.now() - startedAt} terminal=${terminal ?? 'none'}/${widthSource} maxWidth=${maxWidth} ascii=${ascii} ${log.join(' ')}\n`,
   );
   process.exit(0);
 }

@@ -21,7 +21,8 @@ const all = readdirSync('samples').filter((n) => n.endsWith('.mmd'));
 const files = names.length === 0 ? all : names.map((x) => all.find((n) => n === x || n === `${x}.mmd`)).filter(Boolean);
 
 const run = (label, reply) => {
-  const input = JSON.stringify({ last_assistant_message: reply });
+  // A fixed session id so the Windows width cache (cache/shell-run.width) is exercised like in the TUI.
+  const input = JSON.stringify({ session_id: 'shell-run', last_assistant_message: reply });
   const t0 = Date.now();
   const res = spawnSync(command[0], command[1], { input, encoding: 'utf8', env });
   const ms = Date.now() - t0;

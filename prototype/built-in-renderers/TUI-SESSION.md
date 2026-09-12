@@ -3,10 +3,16 @@
 Question: does the size policy (ADR-0005) hold up inside the Claude Code TUI, and do the twelve
 built-in renderers (ADR-0006, ADR-0007) read well inside the `Stop says:` block?
 
-Change made during this ticket: the width limit now follows the terminal. The hook reads the console
-width (`CONOUT$` on Windows, `/dev/tty` elsewhere) and uses it minus the 4-column indent;
-`MERMAID_FOR_CLAUDE_MAX_WIDTH` still overrides; 120 only when the console cannot be read. Every
-`e2e.log` line records `terminal=<columns|none>` and `maxWidth=<limit>`: check it after P1.
+Change made during this ticket: the width limit now follows the terminal, minus the 4-column indent;
+`MERMAID_FOR_CLAUDE_MAX_WIDTH` still overrides; 120 only when the console cannot be read. On Windows a
+hook process sits on an invisible default console (always 120 wide), so the width is read from the
+console of the Claude Code process itself: at session start `console-width.ps1` walks up the process
+tree to the first ancestor whose console has a window (about 1.3 s), caches its pid and width in
+`cache/<session_id>.pid` and `.width`, and compiles `cache/console-width.exe` once (csc.exe from the
+.NET Framework). Every reply with a diagram runs that helper with the cached pid (about 100 ms) and
+gets the live width. Every `e2e.log` line records `terminal=<columns|none>/<live|cache|tty|none>` and
+`maxWidth=<limit>`: check it after P1. `terminal=none/none` means the walk failed inside the real
+hook: report it, with the contents of `cache/` if any.
 
 ## Setup
 
@@ -102,8 +108,8 @@ Resize the terminal window to about 80 columns before pasting:
 Read prototype/built-in-renderers/samples/gantt.mmd and reply with its content inside a ```mermaid fence, nothing else.
 ```
 
-With width detection working, gantt fits itself into about 76 columns (time axis compressed) and
-nothing folds; `e2e.log` shows `terminal=80` or so. If detection fails, the diagram is 120 columns
+With detection working, gantt fits itself into about 76 columns (time axis compressed) and nothing
+folds; `e2e.log` shows `terminal=80/live` or so. If detection fails, the diagram is 120 columns
 wide: record what the TUI does with rows wider than the window (fold, cut, scroll?), then widen the
 window again and note whether the block repaints cleanly. A screenshot of each state helps.
 
