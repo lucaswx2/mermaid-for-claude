@@ -1,0 +1,10 @@
+---
+title: Hook pipeline
+config:
+  theme: dark
+---
+%%{init: {
+  'flowchart': { 'curve': 'linear' }
+}}%%
+flowchart LR
+    A[stdin JSON] --> B[dispatcher] --> C[systemMessage]
