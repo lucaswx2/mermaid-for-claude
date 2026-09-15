@@ -4,7 +4,7 @@
 // the remaining blocks become notices without rendering. A worker error or unexpected exit while a
 // block is pending gives that block a notice and rendering resumes from the next block.
 import { Worker } from 'node:worker_threads';
-import { diagramTypeOf } from './diagram-type.js';
+import { diagramTypeNameOf } from './diagram-header.js';
 import type { Rendered, RenderOptions } from './render-block.js';
 import type { RenderWorkerData, RenderWorkerMessage } from './render-worker.js';
 import { firstErrorLine, logTrace } from './trace.js';
@@ -33,7 +33,7 @@ const runWorker = (blocks: string[], offset: number, options: RenderOptions, res
   new Promise<number>((resolve) => {
     const workerData = { blocks, offset, options } satisfies RenderWorkerData;
     const worker = new Worker(WORKER_URL, { workerData });
-    let current = { index: offset, type: diagramTypeOf(blocks[offset] ?? ''), startedAt: performance.now() };
+    let current = { index: offset, type: diagramTypeNameOf(blocks[offset] ?? ''), startedAt: performance.now() };
     let settled = false;
     let timer: NodeJS.Timeout | undefined;
 
@@ -92,7 +92,7 @@ export const renderWithDeadline = async (blocks: string[], options: RenderOption
     next = await runWorker(blocks, next, options, results);
   }
   for (; next < blocks.length; next += 1) {
-    results[next] = { rendered: { kind: 'notice', type: diagramTypeOf(blocks[next] ?? ''), reason: REPLY_DEADLINE_REASON }, ms: 0 };
+    results[next] = { rendered: { kind: 'notice', type: diagramTypeNameOf(blocks[next] ?? ''), reason: REPLY_DEADLINE_REASON }, ms: 0 };
   }
   return results;
 };

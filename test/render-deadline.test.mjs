@@ -27,8 +27,11 @@ const parseTimingLine = (line) => {
 };
 
 describe('a block over the render deadline', () => {
-  it('becomes a notice after about 3 s and the next block still renders', () => {
-    const reply = `${fence(fixture('deadline-chain-30'))}\n${fence(fixture('flowchart'))}`;
+  it('becomes a notice after about 3 s, named by its canonical type, and the next block still renders', () => {
+    // The chain spelled `graph TD` behind front matter: the notice must still say `flowchart`.
+    const chainAsGraph = `---\ntitle: Pipeline\n---\n${fixture('deadline-chain-30').replace(/^flowchart TD/, 'graph TD')}`;
+    assert.match(chainAsGraph, /^---\ntitle: Pipeline\n---\ngraph TD\n/);
+    const reply = `${fence(chainAsGraph)}\n${fence(fixture('flowchart'))}`;
     const { output, stderr, elapsedMs } = timed(() => runStopHook(reply));
     const [first, ...rest] = output.systemMessage.split('\n\n');
     assert.equal(first, noticeFor('1/2', BLOCK_DEADLINE_REASON));
