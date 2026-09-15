@@ -1,0 +1,26 @@
+mermaid-for-claude: diagram 1/1 (classDiagram)
+┌────────────────┐
+│ Customer       │
+├────────────────┤
+│ +email: String │
+└────────────────┘
+         │
+         └┐
+          ▼
+┌──────────────────┐
+│ Order            │
+├──────────────────┤
+│ +id: String      │
+│ +createdAt: Date │
+├──────────────────┤
+│ +total: Money    │
+└──────────────────┘
+          ◆
+         ┌┘
+         │
+┌────────────────┐
+│ LineItem       │
+├────────────────┤
+│ +sku: String   │
+│ +quantity: int │
+└────────────────┘
