@@ -1,0 +1,21 @@
+---
+title: Hook pipeline
+config:
+  theme: dark
+---
+%%{init: {
+  'flowchart': { 'curve': 'linear' }
+}}%%
+%% a comment before the header
+
+flowchart TD
+    %% a comment inside the body
+    accTitle: The hook loop
+    accDescr {
+        Start, ask, and either finish
+        or go back to the start.
+    }
+    A[Start] --> B{Ok?}
+
+    B -- yes --> C[Done]
+    B -- no --> A
