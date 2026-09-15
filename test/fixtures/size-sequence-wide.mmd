@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant URL as URL (?voucher / ?origin=roulette)
+    participant V as useProfileVoucher
+    participant R as useProfileRouletteGift
+    participant P as useProfile (fachada)
+    participant M as ProfileModals
+    URL->>V: voucher code
+    V-->>P: requestedModal = VOUCHER_MODAL | VOUCHER_USED | INVITATION
+    URL->>R: origin=roulette + gift
+    R-->>P: requestedModal = ROULETTE_MODAL
+    P->>P: setOpenModal(requested)  (substitui o anterior)
+    P->>M: modal, onOpen, onClose, 3 ações
+    M->>M: if modal.type === "payment" ... render um só
