@@ -1,0 +1,17 @@
+mermaid-for-claude: diagram 1/1 (mindmap)
+mermaid-for-claude
+├── Hook
+│   ├── Stop event
+│   ├── systemMessage channel
+│   └── 10,000-char cap
+├── Renderers
+│   ├── Baseline
+│   │   ├── beautiful-mermaid
+│   │   └── flowchart, sequence, state, class, ER, xychart
+│   └── Built-in
+│       ├── S tier: pie, gitGraph, mindmap, journey, timeline, kanban, packet, radar
+│       └── M tier: gantt, quadrantChart, block, treemap
+└── Config
+    ├── MERMAID_FOR_CLAUDE_ASCII
+    ├── MERMAID_FOR_CLAUDE_DISABLE
+    └── MERMAID_FOR_CLAUDE_MAX_WIDTH

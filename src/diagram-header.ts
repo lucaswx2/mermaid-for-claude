@@ -3,13 +3,12 @@
 // because the main thread names a block it never rendered (the worker's `start` message, a block the
 // deadline never let through) and must not load the renderer bundle to do so.
 import { DIAGRAM_TYPES, diagramTypeKey } from './diagram-types.js';
+import { rtrim } from './text.js';
 
 // A `---` block at the very start, and `%%{ ... }%%` directives anywhere, multi-line included.
 const FRONT_MATTER = /^\s*---\n[\s\S]*?\n---[ \t]*(?:\n|$)/;
 const DIRECTIVE = /%%\{[\s\S]*?\}%%/g;
 const COMMENT_LINE = /^\s*%%/;
-
-const rtrim = (line: string) => line.replace(/\s+$/, '');
 
 // accTitle / accDescr are accessibility metadata every diagram type accepts; no renderer sees them. The
 // baseline renderer would otherwise draw `accTitle: x` as a flowchart node.

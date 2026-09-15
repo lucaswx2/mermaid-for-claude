@@ -1,8 +1,13 @@
 // The type table the dispatcher routes by (ADR-0004, ADR-0006): keyed by the lowercased header token
 // without a trailing ':' and without a -beta / -v2 suffix. `name` is the canonical type name printed in
 // headers and notices (spec #16). A baseline entry carries the header token the baseline renderer accepts;
-// a pending entry is a built-in slot whose renderer has not landed yet (tickets 7 to 10 turn each into a
-// built-in entry); a notice entry only ever produces the `unsupported type` notice.
+// a builtin entry carries the renderer written in this plugin for that type; a pending entry is a built-in
+// slot whose renderer has not landed yet; a notice entry only ever produces the `unsupported type` notice.
+import { renderJourney } from './renderers/journey.js';
+import { renderMindmap } from './renderers/mindmap.js';
+import { renderPie } from './renderers/pie.js';
+import { renderTimeline } from './renderers/timeline.js';
+
 export type BuiltinInput = { headerLine: string; lines: string[]; widthLimit: number; useAscii: boolean };
 export type BuiltinRender = (input: BuiltinInput) => string[];
 
@@ -13,6 +18,7 @@ export type DiagramType =
   | { kind: 'notice'; name: string };
 
 const baseline = (name: string, header = name) => ({ kind: 'baseline', name, header }) satisfies DiagramType;
+const builtin = (name: string, render: BuiltinRender) => ({ kind: 'builtin', name, render }) satisfies DiagramType;
 const pending = (name: string) => ({ kind: 'pending', name }) satisfies DiagramType;
 const notice = (name: string) => ({ kind: 'notice', name }) satisfies DiagramType;
 
@@ -24,12 +30,12 @@ export const DIAGRAM_TYPES: Readonly<Record<string, DiagramType>> = {
   classdiagram: baseline('classDiagram'),
   erdiagram: baseline('erDiagram'),
   xychart: baseline('xychart', 'xychart-beta'),
-  // Built-in slots (ADR-0006, ADR-0007); each becomes `{ kind: 'builtin', name, render }` with its own ticket.
-  pie: pending('pie'),
+  // Built-in renderers (ADR-0006, ADR-0007); a pending slot becomes builtin with its own ticket.
+  pie: builtin('pie', renderPie),
   gitgraph: pending('gitGraph'),
-  mindmap: pending('mindmap'),
-  journey: pending('journey'),
-  timeline: pending('timeline'),
+  mindmap: builtin('mindmap', renderMindmap),
+  journey: builtin('journey', renderJourney),
+  timeline: builtin('timeline', renderTimeline),
   kanban: pending('kanban'),
   packet: pending('packet'),
   radar: pending('radar'),

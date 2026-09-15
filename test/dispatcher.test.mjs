@@ -97,8 +97,8 @@ describe('notice-only types', () => {
   }
 
   it('gives the unsupported type notice for a built-in type slot without a renderer yet', () => {
-    const { output } = runStopHook(fence('pie title Pets\n    "Dogs" : 386\n    "Cats" : 85\n'));
-    assert.equal(output.systemMessage, notice('1/1', 'pie', 'unsupported type'));
+    const { output } = runStopHook(fence('gitGraph\n    commit\n    commit\n'));
+    assert.equal(output.systemMessage, notice('1/1', 'gitGraph', 'unsupported type'));
   });
 
   it('prints the canonical name for a built-in slot spelled with a suffix', () => {

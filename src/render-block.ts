@@ -4,6 +4,7 @@
 import { renderMermaidASCII } from 'beautiful-mermaid';
 import { readHeader } from './diagram-header.js';
 import type { DiagramType } from './diagram-types.js';
+import { rtrim } from './text.js';
 import { firstErrorLine, logTrace } from './trace.js';
 
 // Compact padding (ADR-0005); no colour because systemMessage shows none (ADR-0002).
@@ -11,8 +12,6 @@ const BASELINE_OPTIONS = { colorMode: 'none', paddingY: 3, paddingX: 3, boxBorde
 
 export type RenderOptions = { useAscii: boolean; widthLimit: number };
 export type Rendered = { kind: 'diagram'; type: string; body: string } | { kind: 'notice'; type: string; reason: string };
-
-const rtrim = (line: string) => line.replace(/\s+$/, '');
 
 const trimRows = (rows: string[]) => {
   const body = rows.map(rtrim);

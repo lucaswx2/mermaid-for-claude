@@ -1,0 +1,9 @@
+mermaid-for-claude: diagram 1/1 (mindmap)
+Origins of the idea
+├── Literature
+│   ├── Long history
+│   │       with many authors
+│   └── Popularisation
+├── Pen and paper
+└── Mermaid
+    └── Quoted label

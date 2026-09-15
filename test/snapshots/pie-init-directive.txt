@@ -1,0 +1,6 @@
+mermaid-for-claude: diagram 1/1 (pie)
+Where the cold start goes
+
+node startup  █████████████████████░░░░░░░░░░░░░░░░░░░  53.3%
+bundle load   ████████████████░░░░░░░░░░░░░░░░░░░░░░░░    40%
+render        ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   6.7%

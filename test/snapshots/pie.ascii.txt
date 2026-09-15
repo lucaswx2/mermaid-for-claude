@@ -1,0 +1,7 @@
+mermaid-for-claude: diagram 1/1 (pie)
+Bundle size by package
+
+beautiful-mermaid        ######################################..  94.5% (1480)
+esbuild runtime helpers  #.......................................   2.7% (42)
+hook and dispatcher      ........................................   1.1% (18)
+built-in renderers       #.......................................   1.7% (26)
