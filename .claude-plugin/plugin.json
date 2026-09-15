@@ -1,0 +1,11 @@
+{
+  "name": "mermaid-for-claude",
+  "version": "0.1.0",
+  "description": "Renders mermaid blocks from assistant replies as text diagrams inside the terminal. 100% local, Node 20+, no browser.",
+  "author": {
+    "name": "Lucas Medeiros"
+  },
+  "repository": "https://github.com/lucaswx2/mermaid-for-claude",
+  "license": "MIT",
+  "keywords": ["mermaid", "diagram", "terminal", "ascii"]
+}

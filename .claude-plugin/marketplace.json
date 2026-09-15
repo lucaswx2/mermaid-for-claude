@@ -1,0 +1,13 @@
+{
+  "name": "mermaid-for-claude",
+  "owner": {
+    "name": "Lucas Medeiros"
+  },
+  "plugins": [
+    {
+      "name": "mermaid-for-claude",
+      "source": "./",
+      "description": "Renders mermaid blocks from assistant replies as text diagrams inside the terminal. 100% local, Node 20+, no browser."
+    }
+  ]
+}

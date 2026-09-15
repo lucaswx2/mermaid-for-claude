@@ -8,7 +8,7 @@ The `Stop` hook command is `bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh"`, not `no
 
 ## Consequences
 
-- `bash` is required, as it already is for Claude Code on Windows through Git Bash and for the official `datadog` and `security-guidance` plugins. POSIX `sh` is not enough: `dash` lacks `read -d`. `$(cat)` is used instead of `read -d ''` because the latter grows linearly with input size (about 480 ms at 100 KB).
+- `bash` is required, as it already is for Claude Code on Windows through Git Bash and for the official `datadog` and `security-guidance` plugins. POSIX `sh` is not enough: `dash` lacks `read -d`. `$(cat)` is used instead of `read -d ''` because the latter grows linearly with input size (about 480 ms at 100 KB). Found while implementing ticket #17: `$(</dev/stdin)` would be about 35 ms faster on Windows but MSYS has no `/dev/stdin` for a pipe handed over by a Windows process such as Claude Code, so it reads nothing; `$(cat)` stays, with `read -d ''` as the fallback only when `cat` itself is missing, so an empty `PATH` still reaches the Node-missing notice.
 - The wrapper never exits non-zero and never blocks; every failure it can see becomes a `systemMessage` notice, so Claude Code's `Stop hook error` line never appears because of this plugin.
 - Passing the input through a here-string preserves backslashes, quotes, `$(...)`, backticks and `$VAR` verbatim; nothing in the reply is ever evaluated by the shell (verified with a hostile payload).
 - A Windows install path with a drive letter and backslashes works when interpolated into the `bash` command and read from `$CLAUDE_PLUGIN_ROOT` inside the script (verified on Git Bash).
