@@ -63,5 +63,9 @@ The most text one reply's rendering may add to the terminal, shared by every dia
 _Avoid_: size cap, char limit, quota
 
 **Width limit**:
-The widest rendered diagram the plugin will show. A wider diagram becomes a notice. Built-in renderers fit inside it; the baseline renderer is measured against it.
-_Avoid_: max width, terminal width, column cap
+The widest rendered diagram the plugin will show: the terminal width minus the indent of the `Stop says:` block, read on every reply, or the value of `MERMAID_FOR_CLAUDE_MAX_WIDTH`. A wider diagram becomes a notice. Built-in renderers fit inside it; the baseline renderer is measured against it.
+_Avoid_: max width, column cap
+
+**Render deadline**:
+The most time one diagram may take to render (3 s), with a longer bound for the whole reply (7 s). A diagram over it becomes a notice; the next one is still tried.
+_Avoid_: timeout, time limit

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ADR-0008 (the width limit follows the live terminal width; notices count against the budget)
 ---
 
 # Size policy: a per-reply output budget, a fixed width limit, compact padding
