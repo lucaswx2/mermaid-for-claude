@@ -18,12 +18,17 @@ export const bash =
     ? spawnSync('bash', ['-c', 'cygpath -w "$(command -v bash)"'], { encoding: 'utf8' }).stdout.trim()
     : spawnSync('bash', ['-c', 'command -v bash'], { encoding: 'utf8' }).stdout.trim();
 
+// A key set to `undefined` in `env` removes that variable from the child's environment, so a test can
+// assert a fallback even when the developer's shell exports the variable.
+const childEnv = (env) =>
+  Object.fromEntries(Object.entries({ ...process.env, CLAUDE_PLUGIN_ROOT: root, ...env }).filter(([, value]) => value !== undefined));
+
 export const runStopHook = (reply, env = {}) => {
   const hookInput = JSON.stringify({ session_id: 'test-session', hook_event_name: 'Stop', last_assistant_message: reply });
   const child = spawnSync(bash, [join(root, 'hooks', 'stop.sh')], {
     input: hookInput,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: root, ...env },
+    env: childEnv(env),
   });
   assert.equal(child.status, 0, `stop.sh exited ${child.status}: ${child.stderr}`);
   return { stdout: child.stdout, stderr: child.stderr, output: child.stdout ? JSON.parse(child.stdout) : {} };

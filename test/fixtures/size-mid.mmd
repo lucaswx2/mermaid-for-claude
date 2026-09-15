@@ -1,0 +1,29 @@
+flowchart TD
+    A[Request arrives at the edge] --> B{Cached response?}
+    B -- yes --> C[Serve from cache]
+    B -- no --> D[Authenticate the caller]
+    D --> E{Token valid?}
+    E -- no --> F[Reply 401 Unauthorized]
+    E -- yes --> G[Load the tenant settings]
+    G --> H{Feature flag on?}
+    H -- no --> I[Legacy handler]
+    H -- yes --> J[New handler]
+    I --> K[Query the primary database]
+    J --> L[Query the read replica]
+    K --> M[Map rows to the response model]
+    L --> M
+    M --> N{Payload over 1 MB?}
+    N -- yes --> O[Stream the response in chunks]
+    N -- no --> P[Send the response in one piece]
+    O --> Q[Write the access log]
+    P --> Q
+    Q --> R[Emit metrics to the collector]
+    R --> S{Error rate above threshold?}
+    S -- yes --> T[Page the on-call engineer]
+    S -- no --> U[Done]
+    T --> U
+    C --> Q
+    F --> Q
+    U --> V[Archive the trace after 7 days]
+    V --> W[Purge the cache entry]
+    W --> X[End]

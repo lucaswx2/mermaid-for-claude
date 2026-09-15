@@ -1,13 +1,12 @@
 // Stop hook entry point (ADR-0001): reads the hook JSON from stdin, renders every diagram block of the
 // reply and writes the systemMessage payload to stdout. Every failure it can see becomes a notice.
 import { readFileSync } from 'node:fs';
-import type { Rendered } from './render-block.js';
+import { assemblePayload } from './output-budget.js';
 import { elapsedSinceBundleStart, renderWithDeadline } from './render-deadline.js';
 import { timingLineFor } from './timing-line.js';
 import { firstErrorLine, logTrace, PLUGIN_NAME } from './trace.js';
-import { resolveWidthLimit } from './width-limit.js';
+import { enforceWidthLimit, resolveWidthLimit } from './width-limit.js';
 
-const SEPARATOR = '\n\n';
 const NODE_MAJOR_REQUIRED = 20;
 // A ```mermaid fence, possibly indented inside a list item; the body is dedented by that indentation.
 const MERMAID_FENCE = /^([ \t]*)```mermaid[^\n]*\n([\s\S]*?)^[ \t]*```[ \t]*$/gm;
@@ -37,11 +36,6 @@ const extractDiagramBlocks = (reply: string) =>
       .join('\n');
   });
 
-const sectionFor = (rendered: Rendered, position: string) =>
-  rendered.kind === 'diagram'
-    ? `${PLUGIN_NAME}: diagram ${position} (${rendered.type})\n${rendered.body}`
-    : `${PLUGIN_NAME}: could not render diagram ${position} (${rendered.type}): ${rendered.reason}`;
-
 const buildHookOutput = async (): Promise<HookOutput> => {
   if (isFlagSet(process.env['MERMAID_FOR_CLAUDE_DISABLE'])) return {};
 
@@ -57,9 +51,11 @@ const buildHookOutput = async (): Promise<HookOutput> => {
     useAscii: isFlagSet(process.env['MERMAID_FOR_CLAUDE_ASCII']),
     widthLimit: resolveWidthLimit(process.env['MERMAID_FOR_CLAUDE_MAX_WIDTH']),
   };
-  const results = await renderWithDeadline(blocks, renderOptions);
-  const sections = results.map(({ rendered }, index) => sectionFor(rendered, `${index + 1}/${blocks.length}`));
-  const systemMessage = sections.join(SEPARATOR);
+  const results = (await renderWithDeadline(blocks, renderOptions)).map((timed) => ({
+    ...timed,
+    rendered: enforceWidthLimit(timed.rendered, renderOptions.widthLimit),
+  }));
+  const systemMessage = assemblePayload(results.map(({ rendered }) => rendered));
   const timingLine = timingLineFor(results, { payloadLength: systemMessage.length, totalMs: elapsedSinceBundleStart(), options: renderOptions });
   process.stderr.write(`${timingLine}\n`);
   return { systemMessage };
