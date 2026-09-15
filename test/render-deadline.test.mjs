@@ -46,7 +46,7 @@ describe('a reply over the reply deadline', () => {
   it('gives the remaining blocks the reply-deadline notice without rendering them, within 8 s', () => {
     const chain = fence(fixture('deadline-chain-30'));
     const reply = `${chain}\n${chain}\n${chain}\n${fence(fixture('flowchart'))}`;
-    const { output, elapsedMs } = timed(() => runStopHook(reply));
+    const { output, stderr, elapsedMs } = timed(() => runStopHook(reply));
     // Block 1 spends its 3 s. Block 2 starts at about 3.2 s, so 7 s leaves more than 3 s: it gets 3 s too.
     // Block 3 starts at about 6.4 s with less than 3 s left: it gets what the reply deadline leaves.
     // Block 4 is never handed to a worker: the reply deadline has passed.
@@ -56,7 +56,11 @@ describe('a reply over the reply deadline', () => {
       noticeFor('3/4', REPLY_DEADLINE_REASON),
       noticeFor('4/4', REPLY_DEADLINE_REASON),
     ]);
-    assert.ok(elapsedMs < 8_000, `expected under 8 s, took ${Math.round(elapsedMs)} ms`);
+    // The hook's own clock starts at bundle start; the wall clock adds bash and node startup, which a
+    // shared CI runner stretches past a second. Claude Code kills the hook at 10 s (hooks.json).
+    const { summary } = parseTimingLine(timingLines(stderr)[0]);
+    assert.ok(Number(summary.totalMs) < 8_000, `expected under 8 s from bundle start, the hook reported ${summary.totalMs} ms`);
+    assert.ok(elapsedMs < 9_500, `expected well under the 10 s hook timeout, took ${Math.round(elapsedMs)} ms`);
   });
 });
 
