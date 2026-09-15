@@ -1,0 +1,15 @@
+classDiagram
+    class Order {
+        +String id
+        +Date createdAt
+        +total() Money
+    }
+    class LineItem {
+        +String sku
+        +int quantity
+    }
+    class Customer {
+        +String email
+    }
+    Order *-- LineItem
+    Customer --> Order

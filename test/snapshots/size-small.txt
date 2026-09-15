@@ -1,4 +1,4 @@
-mermaid-for-claude: diagram 1/1 (stateDiagram-v2)
+mermaid-for-claude: diagram 1/1 (stateDiagram)
 ●───────●
 │       │
 ●───────●

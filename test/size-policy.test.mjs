@@ -102,26 +102,29 @@ describe('output budget', () => {
     assert.match(output.systemMessage, /Nightly batch ends/);
   });
 
-  it('keeps the payload under the budget for forty-seven blocks and closes with one skipped line', () => {
+  it('keeps the payload under the budget for forty-seven blocks and closes with one notice and one skipped line', () => {
     const reply = Array.from({ length: 47 }, () => fence(fixture('size-small'))).join('\n');
     const { output } = runStopHook(reply, { MERMAID_FOR_CLAUDE_MAX_WIDTH: '120' });
     const payload = output.systemMessage;
     assert.ok(payload.length < OUTPUT_BUDGET_CHARS, `payload is ${payload.length} chars`);
-    assert.equal(payload.length, 9_751);
+    assert.equal(payload.length, 9_741);
 
     const sections = payload.split(SEPARATOR);
     const closing = sections.at(-1);
-    assert.equal(closing, `mermaid-for-claude: diagrams 43/47 to 47/47 skipped: ${BUDGET_REASON}`);
+    assert.equal(closing, `mermaid-for-claude: diagrams 44/47 to 47/47 skipped: ${BUDGET_REASON}`);
+    assert.equal(sections.at(-2), `mermaid-for-claude: could not render diagram 43/47 (stateDiagram): ${BUDGET_REASON}`);
     assert.deepEqual(
-      sections.slice(0, -1),
+      sections.slice(0, -2),
       Array.from({ length: 42 }, (_, index) => renderedAt('size-small', `${index + 1}/47`)),
     );
 
     // Accounting (ADR-0008): headers, bodies and separators all count. Next to the 140-character reserve
-    // neither a 43rd diagram nor a budget notice for it fits, so the closing line follows at once.
+    // a 43rd diagram does not fit but its notice does; a 44th notice would not, so the closing line follows.
+    const usedBeforeNotice = sections.slice(0, -2).join(SEPARATOR).length;
+    assert.ok(usedBeforeNotice + SEPARATOR.length + renderedAt('size-small', '43/47').length + SUMMARY_RESERVE_CHARS > OUTPUT_BUDGET_CHARS);
+    assert.ok(usedBeforeNotice + SEPARATOR.length + sections.at(-2).length + SUMMARY_RESERVE_CHARS <= OUTPUT_BUDGET_CHARS);
     const usedBeforeClosing = sections.slice(0, -1).join(SEPARATOR).length;
-    const nextNotice = `mermaid-for-claude: could not render diagram 43/47 (stateDiagram-v2): ${BUDGET_REASON}`;
-    assert.ok(usedBeforeClosing + SEPARATOR.length + renderedAt('size-small', '43/47').length + SUMMARY_RESERVE_CHARS > OUTPUT_BUDGET_CHARS);
+    const nextNotice = `mermaid-for-claude: could not render diagram 44/47 (stateDiagram): ${BUDGET_REASON}`;
     assert.ok(usedBeforeClosing + SEPARATOR.length + nextNotice.length + SUMMARY_RESERVE_CHARS > OUTPUT_BUDGET_CHARS);
     assert.ok(usedBeforeClosing + SEPARATOR.length + closing.length <= OUTPUT_BUDGET_CHARS);
   });
@@ -136,7 +139,7 @@ describe('output budget', () => {
     assert.equal(sections.length, 4);
     assert.equal(sections[0], renderedAt('size-mid', '1/47'));
     assert.equal(sections[1], renderedAt('size-mid', '2/47'));
-    assert.equal(sections[2], `mermaid-for-claude: could not render diagram 3/47 (stateDiagram-v2): ${BUDGET_REASON}`);
+    assert.equal(sections[2], `mermaid-for-claude: could not render diagram 3/47 (stateDiagram): ${BUDGET_REASON}`);
     assert.equal(sections[3], `mermaid-for-claude: diagrams 4/47 to 47/47 skipped: ${BUDGET_REASON}`);
 
     // The third block's diagram did not fit but its notice did; a fourth notice would have overrun the
@@ -145,7 +148,7 @@ describe('output budget', () => {
     assert.ok(usedBeforeNotice + SEPARATOR.length + renderedAt('size-small', '3/47').length + SUMMARY_RESERVE_CHARS > OUTPUT_BUDGET_CHARS);
     assert.ok(usedBeforeNotice + SEPARATOR.length + sections[2].length + SUMMARY_RESERVE_CHARS <= OUTPUT_BUDGET_CHARS);
     const usedBeforeClosing = sections.slice(0, 3).join(SEPARATOR).length;
-    const fourthNotice = `mermaid-for-claude: could not render diagram 4/47 (stateDiagram-v2): ${BUDGET_REASON}`;
+    const fourthNotice = `mermaid-for-claude: could not render diagram 4/47 (stateDiagram): ${BUDGET_REASON}`;
     assert.ok(usedBeforeClosing + SEPARATOR.length + fourthNotice.length + SUMMARY_RESERVE_CHARS > OUTPUT_BUDGET_CHARS);
     assert.ok(usedBeforeClosing + SEPARATOR.length + sections[3].length <= OUTPUT_BUDGET_CHARS);
   });

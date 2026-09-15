@@ -1,0 +1,11 @@
+mermaid-for-claude: diagram 1/1 (erDiagram)
+┌──────────┐      ┌───────┐
+│ CUSTOMER ││───○╟│ ORDER │
+└──────────┘places└───────┘
+                      │
+      ───────────────── contains
+      │               │
+      ╟               │
+┌───────────┐      ┌─────────┐
+│ LINE_ITEM │╢○───││ PRODUCT │
+└───────────┘appear└─────────┘

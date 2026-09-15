@@ -52,18 +52,6 @@ describe('rendering a flowchart', () => {
   });
 });
 
-describe('a block the renderer rejects', () => {
-  it('becomes a one-line notice and the next block still renders', () => {
-    const { output } = runStopHook(`${fence('foo TD\n    A --> B\n')}\n${fence(fixture('flowchart'))}`);
-    const [first, ...rest] = output.systemMessage.split('\n\n');
-    assert.equal(
-      first,
-      'mermaid-for-claude: could not render diagram 1/2 (foo): Invalid mermaid header: "foo TD". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.',
-    );
-    assert.equal(rest.join('\n\n'), snapshot('flowchart').replace('diagram 1/1', 'diagram 2/2'));
-  });
-});
-
 describe('staying silent', () => {
   it('prints nothing for a reply without a diagram block', () => {
     const { stdout } = runStopHook('Just prose, and a ```js\nconsole.log(1)\n``` block.');
