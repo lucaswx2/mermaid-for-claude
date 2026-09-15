@@ -3,7 +3,10 @@
 # or the reply has no diagram block, prints one notice when node is missing, and otherwise hands the
 # input to the committed bundle through a here-string so nothing in the reply is ever evaluated.
 # Never exits non-zero, never blocks, never writes under the plugin root.
-input=$(cat)
+# `$(cat)` is the fast path (ADR-0003); the builtin `read` only runs when cat itself is missing, so an
+# empty PATH still reaches the Node-missing notice. `$(</dev/stdin)` is not an option: MSYS has no
+# /dev/stdin for a pipe handed over by a Windows process such as Claude Code.
+input=$(cat 2>/dev/null) || IFS= read -r -d '' input
 
 case "${MERMAID_FOR_CLAUDE_DISABLE:-}" in
   ''|0|false) ;;
@@ -20,5 +23,4 @@ if ! command -v node >/dev/null 2>&1; then
   exit 0
 fi
 
-root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-exec node "$root/dist/hook.mjs" <<< "$input"
+exec node "$CLAUDE_PLUGIN_ROOT/dist/hook.mjs" <<< "$input"

@@ -1,0 +1,16 @@
+mermaid-for-claude: diagram 1/1 (flowchart)
++-----+
+|Start|
++-----+
+   ^
+   |
+  nv
+<----->
+| Ok? |
+<----->
+  yes
+   |
+   v
++-----+
+| Done|
++-----+
