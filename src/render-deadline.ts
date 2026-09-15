@@ -69,6 +69,8 @@ const runWorker = (blocks: string[], offset: number, options: RenderOptions, res
         return;
       }
       results[message.index] = { rendered: message.rendered, ms: Math.round(performance.now() - current.startedAt) };
+      // Nothing is pending until the next `start` re-arms the deadline; a tick now would overwrite this result.
+      clearTimeout(timer);
       if (message.index === blocks.length - 1) settle(blocks.length);
     });
     worker.on('error', (err) => {

@@ -105,3 +105,27 @@ describe('the worker path', () => {
     }
   });
 });
+
+describe('a worker that fails while a block is pending', () => {
+  it('gives that block a notice with the error, tries the next block in a fresh worker, and the hook still answers', () => {
+    // A plugin root without the worker bundle: every worker fails at boot, with the block already pending.
+    const pluginRoot = mkdtempSync(join(tmpdir(), 'mfc-no-worker-'));
+    try {
+      cpSync(join(root, 'hooks'), join(pluginRoot, 'hooks'), { recursive: true });
+      cpSync(join(root, 'dist', 'hook.mjs'), join(pluginRoot, 'dist', 'hook.mjs'));
+      const reply = `${fence(fixture('flowchart'))}\n${fence(fixture('flowchart'))}`;
+      const { output, stderr } = runStopHook(reply, { CLAUDE_PLUGIN_ROOT: pluginRoot });
+      const [first, second, ...rest] = output.systemMessage.split('\n\n');
+      assert.match(first, /^mermaid-for-claude: could not render diagram 1\/2 \(flowchart\): Cannot find module/);
+      assert.match(second, /^mermaid-for-claude: could not render diagram 2\/2 \(flowchart\): Cannot find module/);
+      assert.deepEqual(rest, []);
+      assert.doesNotMatch(stderr, /Stop hook/);
+      const { blocks } = parseTimingLine(timingLines(stderr)[0]);
+      assert.equal(blocks.length, 2);
+      assert.match(blocks[0].notice, /^Cannot find module/);
+      assert.match(blocks[1].notice, /^Cannot find module/);
+    } finally {
+      rmSync(pluginRoot, { recursive: true, force: true });
+    }
+  });
+});
