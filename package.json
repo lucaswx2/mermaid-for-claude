@@ -1,0 +1,22 @@
+{
+  "name": "mermaid-for-claude",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that renders mermaid blocks from assistant replies as text diagrams inside the terminal",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "beautiful-mermaid": "1.1.3",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.2"
+  }
+}
