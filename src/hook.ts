@@ -1,7 +1,9 @@
 // Stop hook entry point (ADR-0001): reads the hook JSON from stdin, renders every diagram block of the
 // reply and writes the systemMessage payload to stdout. Every failure it can see becomes a notice.
 import { readFileSync } from 'node:fs';
-import { renderBlock, type Rendered } from './render-block.js';
+import type { Rendered } from './render-block.js';
+import { elapsedSinceBundleStart, renderWithDeadline } from './render-deadline.js';
+import { timingLineFor } from './timing-line.js';
 import { firstErrorLine, logTrace, PLUGIN_NAME } from './trace.js';
 import { resolveWidthLimit } from './width-limit.js';
 
@@ -40,7 +42,7 @@ const sectionFor = (rendered: Rendered, position: string) =>
     ? `${PLUGIN_NAME}: diagram ${position} (${rendered.type})\n${rendered.body}`
     : `${PLUGIN_NAME}: could not render diagram ${position} (${rendered.type}): ${rendered.reason}`;
 
-const buildHookOutput = (): HookOutput => {
+const buildHookOutput = async (): Promise<HookOutput> => {
   if (isFlagSet(process.env['MERMAID_FOR_CLAUDE_DISABLE'])) return {};
 
   const nodeMajor = Number(process.versions.node.split('.')[0]);
@@ -55,13 +57,17 @@ const buildHookOutput = (): HookOutput => {
     useAscii: isFlagSet(process.env['MERMAID_FOR_CLAUDE_ASCII']),
     widthLimit: resolveWidthLimit(process.env['MERMAID_FOR_CLAUDE_MAX_WIDTH']),
   };
-  const sections = blocks.map((source, index) => sectionFor(renderBlock(source, renderOptions), `${index + 1}/${blocks.length}`));
-  return { systemMessage: sections.join(SEPARATOR) };
+  const results = await renderWithDeadline(blocks, renderOptions);
+  const sections = results.map(({ rendered }, index) => sectionFor(rendered, `${index + 1}/${blocks.length}`));
+  const systemMessage = sections.join(SEPARATOR);
+  const timingLine = timingLineFor(results, { payloadLength: systemMessage.length, totalMs: elapsedSinceBundleStart(), options: renderOptions });
+  process.stderr.write(`${timingLine}\n`);
+  return { systemMessage };
 };
 
-const hookOutput = (() => {
+const hookOutput = await (async () => {
   try {
-    return buildHookOutput();
+    return await buildHookOutput();
   } catch (err) {
     logTrace('internal error', err);
     return { systemMessage: `${PLUGIN_NAME}: internal error: ${firstErrorLine(err)}` };
