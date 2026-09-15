@@ -42,7 +42,7 @@ const withoutAccessibility = (lines: string[]) => {
 // Front matter, directives, comment lines, blank lines and accessibility lines come off before the header
 // is read: the baseline renderer rejects front matter and multi-line directives outright, and for every
 // type but flowchart and state it also rejects a comment or one-line directive ahead of the header.
-const prepare = (source: string) => {
+const stripMetadata = (source: string) => {
   const text = source.replace(/\r\n?/g, '\n').replace(FRONT_MATTER, '').replace(DIRECTIVE, '');
   const lines = withoutAccessibility(text.split('\n').map(rtrim).filter((line) => line.trim() && !COMMENT_LINE.test(line)));
   return { headerLine: (lines[0] ?? '').trim(), lines: lines.slice(1) };
@@ -55,23 +55,22 @@ const trimRows = (rows: string[]) => {
   return body;
 };
 
-// The render step for an entry that has a renderer, or undefined when the entry is notice-only or its
-// built-in renderer has not landed yet. The baseline header token is rewritten to what the renderer
-// accepts (`classDiagram-v2` to `classDiagram`, `flowchart: TD` to `flowchart TD`); the rest of the line stays.
+// The render step for an entry that has a renderer, or undefined when the entry is notice-only or pending.
+// The baseline header token is rewritten to what the renderer accepts (`classDiagram-v2` to `classDiagram`,
+// `flowchart: TD` to `flowchart TD`); the rest of the line stays.
 const rendererFor = (entry: DiagramType, headerLine: string, lines: string[], options: RenderOptions) => {
   if (entry.kind === 'baseline') {
     const header = headerLine.replace(/^\S+/, entry.header);
     return () => renderMermaidASCII([header, ...lines].join('\n'), { ...BASELINE_OPTIONS, useAscii: options.useAscii }).split('\n');
   }
-  if (entry.kind === 'builtin' && entry.render !== undefined) {
-    const { render } = entry;
-    return () => render({ headerLine, lines, widthLimit: options.widthLimit, useAscii: options.useAscii });
+  if (entry.kind === 'builtin') {
+    return () => entry.render({ headerLine, lines, widthLimit: options.widthLimit, useAscii: options.useAscii });
   }
   return undefined;
 };
 
 export const renderBlock = (source: string, options: RenderOptions): Rendered => {
-  const { headerLine, lines } = prepare(source);
+  const { headerLine, lines } = stripMetadata(source);
   const token = headerLine.split(/\s+/)[0] ?? '';
   const entry = DIAGRAM_TYPES[diagramTypeKey(token)];
   if (!entry) return { kind: 'notice', type: token || 'unknown', reason: 'unsupported type' };
