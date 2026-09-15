@@ -2,7 +2,8 @@
 // reply and writes the systemMessage payload to stdout. Every failure it can see becomes a notice.
 import { readFileSync } from 'node:fs';
 import { assemblePayload } from './output-budget.js';
-import { renderBlock } from './render-block.js';
+import { elapsedSinceBundleStart, renderWithDeadline } from './render-deadline.js';
+import { timingLineFor } from './timing-line.js';
 import { firstErrorLine, logTrace, PLUGIN_NAME } from './trace.js';
 import { enforceWidthLimit, resolveWidthLimit } from './width-limit.js';
 
@@ -35,7 +36,7 @@ const extractDiagramBlocks = (reply: string) =>
       .join('\n');
   });
 
-const buildHookOutput = (): HookOutput => {
+const buildHookOutput = async (): Promise<HookOutput> => {
   if (isFlagSet(process.env['MERMAID_FOR_CLAUDE_DISABLE'])) return {};
 
   const nodeMajor = Number(process.versions.node.split('.')[0]);
@@ -50,13 +51,19 @@ const buildHookOutput = (): HookOutput => {
     useAscii: isFlagSet(process.env['MERMAID_FOR_CLAUDE_ASCII']),
     widthLimit: resolveWidthLimit(process.env['MERMAID_FOR_CLAUDE_MAX_WIDTH']),
   };
-  const rendered = blocks.map((source) => enforceWidthLimit(renderBlock(source, renderOptions), renderOptions.widthLimit));
-  return { systemMessage: assemblePayload(rendered) };
+  const results = (await renderWithDeadline(blocks, renderOptions)).map((timed) => ({
+    ...timed,
+    rendered: enforceWidthLimit(timed.rendered, renderOptions.widthLimit),
+  }));
+  const systemMessage = assemblePayload(results.map(({ rendered }) => rendered));
+  const timingLine = timingLineFor(results, { payloadLength: systemMessage.length, totalMs: elapsedSinceBundleStart(), options: renderOptions });
+  process.stderr.write(`${timingLine}\n`);
+  return { systemMessage };
 };
 
-const hookOutput = (() => {
+const hookOutput = await (async () => {
   try {
-    return buildHookOutput();
+    return await buildHookOutput();
   } catch (err) {
     logTrace('internal error', err);
     return { systemMessage: `${PLUGIN_NAME}: internal error: ${firstErrorLine(err)}` };

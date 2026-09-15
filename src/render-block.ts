@@ -1,52 +1,18 @@
-// The dispatcher (ADR-0006 rules): strips the metadata every mermaid type accepts, reads the header token,
-// routes the block to the baseline renderer, a built-in renderer or the `unsupported type` notice, and
-// turns empty output or a thrown error into a notice. The hook only assembles what comes back.
+// The dispatcher (ADR-0006 rules): reads the header (diagram-header.ts strips the metadata every mermaid
+// type accepts), routes the block to the baseline renderer, a built-in renderer or the `unsupported type`
+// notice, and turns empty output or a thrown error into a notice. The hook only assembles what comes back.
 import { renderMermaidASCII } from 'beautiful-mermaid';
-import { DIAGRAM_TYPES, diagramTypeKey, type DiagramType } from './diagram-types.js';
+import { readHeader } from './diagram-header.js';
+import type { DiagramType } from './diagram-types.js';
 import { firstErrorLine, logTrace } from './trace.js';
 
 // Compact padding (ADR-0005); no colour because systemMessage shows none (ADR-0002).
 const BASELINE_OPTIONS = { colorMode: 'none', paddingY: 3, paddingX: 3, boxBorderPadding: 0 } as const;
 
-// A `---` block at the very start, and `%%{ ... }%%` directives anywhere, multi-line included.
-const FRONT_MATTER = /^\s*---\n[\s\S]*?\n---[ \t]*(?:\n|$)/;
-const DIRECTIVE = /%%\{[\s\S]*?\}%%/g;
-const COMMENT_LINE = /^\s*%%/;
-
 export type RenderOptions = { useAscii: boolean; widthLimit: number };
 export type Rendered = { kind: 'diagram'; type: string; body: string } | { kind: 'notice'; type: string; reason: string };
 
 const rtrim = (line: string) => line.replace(/\s+$/, '');
-
-// accTitle / accDescr are accessibility metadata every diagram type accepts; no renderer sees them. The
-// baseline renderer would otherwise draw `accTitle: x` as a flowchart node.
-const withoutAccessibility = (lines: string[]) => {
-  const kept: string[] = [];
-  let inDescrBlock = false;
-  for (const line of lines) {
-    const text = line.trim();
-    if (inDescrBlock) {
-      if (text.includes('}')) inDescrBlock = false;
-      continue;
-    }
-    if (/^accTitle\s*:/i.test(text) || /^accDescr\s*:/i.test(text)) continue;
-    if (/^accDescr\s*\{/i.test(text)) {
-      inDescrBlock = !text.includes('}');
-      continue;
-    }
-    kept.push(line);
-  }
-  return kept;
-};
-
-// Front matter, directives, comment lines, blank lines and accessibility lines come off before the header
-// is read: the baseline renderer rejects front matter and multi-line directives outright, and for every
-// type but flowchart and state it also rejects a comment or one-line directive ahead of the header.
-const stripMetadata = (source: string) => {
-  const text = source.replace(/\r\n?/g, '\n').replace(FRONT_MATTER, '').replace(DIRECTIVE, '');
-  const lines = withoutAccessibility(text.split('\n').map(rtrim).filter((line) => line.trim() && !COMMENT_LINE.test(line)));
-  return { headerLine: (lines[0] ?? '').trim(), lines: lines.slice(1) };
-};
 
 const trimRows = (rows: string[]) => {
   const body = rows.map(rtrim);
@@ -70,9 +36,7 @@ const rendererFor = (entry: DiagramType, headerLine: string, lines: string[], op
 };
 
 export const renderBlock = (source: string, options: RenderOptions): Rendered => {
-  const { headerLine, lines } = stripMetadata(source);
-  const token = headerLine.split(/\s+/)[0] ?? '';
-  const entry = DIAGRAM_TYPES[diagramTypeKey(token)];
+  const { headerLine, lines, token, entry } = readHeader(source);
   if (!entry) return { kind: 'notice', type: token || 'unknown', reason: 'unsupported type' };
 
   const render = rendererFor(entry, headerLine, lines, options);

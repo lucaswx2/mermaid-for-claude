@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: git diff --exit-code -- dist/
+      - name: dist matches the source, new files included
+        run: git add --intent-to-add dist && git diff --exit-code -- dist/
+        shell: bash
       - run: npm run typecheck
       - run: npm test
