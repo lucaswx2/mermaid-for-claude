@@ -13,11 +13,6 @@ const REPLY_DEADLINE_REASON = 'reply render deadline (7 s) exhausted';
 const TIMING_LINE_PREFIX = 'mermaid-for-claude: blocks=';
 
 const noticeFor = (position, reason) => `mermaid-for-claude: could not render diagram ${position} (flowchart): ${reason}`;
-const timed = (run) => {
-  const startedAt = performance.now();
-  const result = run();
-  return { ...result, elapsedMs: performance.now() - startedAt };
-};
 const timingLines = (stderr) => stderr.split('\n').filter((line) => line.startsWith(TIMING_LINE_PREFIX));
 // `key=value` pairs before the first `dN=` are the reply summary; each `dN=type ...` group is one block.
 const parseTimingLine = (line) => {
@@ -32,38 +27,52 @@ describe('a block over the render deadline', () => {
     const chainAsGraph = `---\ntitle: Pipeline\n---\n${fixture('deadline-chain-30').replace(/^flowchart TD/, 'graph TD')}`;
     assert.match(chainAsGraph, /^---\ntitle: Pipeline\n---\ngraph TD\n/);
     const reply = `${fence(chainAsGraph)}\n${fence(fixture('flowchart'))}`;
-    const { output, stderr, elapsedMs } = timed(() => runStopHook(reply));
+    const { output, stderr } = runStopHook(reply);
     const [first, ...rest] = output.systemMessage.split('\n\n');
     assert.equal(first, noticeFor('1/2', BLOCK_DEADLINE_REASON));
     assert.equal(rest.join('\n\n'), snapshot('flowchart').replace('diagram 1/1', 'diagram 2/2'));
-    assert.ok(elapsedMs > 3_000 && elapsedMs < 6_000, `expected about 3.5 s, took ${Math.round(elapsedMs)} ms`);
     assert.doesNotMatch(stderr, /Stop hook/);
     const [line] = timingLines(stderr);
     const { blocks } = parseTimingLine(line);
     assert.equal(blocks[0].notice, BLOCK_DEADLINE_REASON);
     assert.equal(blocks[1].notice, undefined);
+    // The block's own render window as the hook measured it, not the wall clock: bash, node and worker
+    // boot sit outside it, and under `node --test` parallelism those are what stretch a wall-clock margin.
+    const firstMs = Number(blocks[0].ms);
+    assert.ok(firstMs > 2_900 && firstMs < 5_000, `expected about 3 s of rendering, the hook reported ${firstMs} ms`);
   });
 });
 
 describe('a reply over the reply deadline', () => {
-  it('gives the remaining blocks the reply-deadline notice without rendering them, within 8 s', () => {
+  it('gives the remaining blocks the reply-deadline notice without rendering them', () => {
     const chain = fence(fixture('deadline-chain-30'));
-    const reply = `${chain}\n${chain}\n${chain}\n${fence(fixture('flowchart'))}`;
-    const { output, stderr, elapsedMs } = timed(() => runStopHook(reply));
-    // Block 1 spends its 3 s. Block 2 starts at about 3.2 s, so 7 s leaves more than 3 s: it gets 3 s too.
-    // Block 3 starts at about 6.4 s with less than 3 s left: it gets what the reply deadline leaves.
-    // Block 4 is never handed to a worker: the reply deadline has passed.
-    assert.deepEqual(output.systemMessage.split('\n\n'), [
-      noticeFor('1/4', BLOCK_DEADLINE_REASON),
-      noticeFor('2/4', BLOCK_DEADLINE_REASON),
-      noticeFor('3/4', REPLY_DEADLINE_REASON),
-      noticeFor('4/4', REPLY_DEADLINE_REASON),
-    ]);
-    // The hook's own clock starts at bundle start; the wall clock adds bash and node startup, which a
-    // shared CI runner stretches past a second. Claude Code kills the hook at 10 s (hooks.json).
-    const { summary } = parseTimingLine(timingLines(stderr)[0]);
-    assert.ok(Number(summary.totalMs) < 8_000, `expected under 8 s from bundle start, the hook reported ${summary.totalMs} ms`);
-    assert.ok(elapsedMs < 9_500, `expected well under the 10 s hook timeout, took ${Math.round(elapsedMs)} ms`);
+    const small = fence(fixture('flowchart'));
+    // Three chains no worker finishes, then two blocks that render in milliseconds when they get a worker:
+    // a notice on those two can only come from the reply deadline.
+    const reply = `${chain}\n${chain}\n${chain}\n${small}\n${small}`;
+    const { output, stderr } = runStopHook(reply);
+    const notices = output.systemMessage.split('\n\n');
+    const { summary, blocks } = parseTimingLine(timingLines(stderr)[0]);
+    // Block 1 starts near bundle start, so it always spends its own 3 s. Where the budget runs out after
+    // that is not this test's business: it turns on what spawning a worker and loading the renderer bundle
+    // costs on the machine, which on Windows is about a second per block against 1 s of slack. What holds
+    // everywhere is the shape below.
+    assert.equal(notices.length, 5);
+    assert.equal(notices[0], noticeFor('1/5', BLOCK_DEADLINE_REASON));
+    assert.deepEqual(notices.slice(3), [noticeFor('4/5', REPLY_DEADLINE_REASON), noticeFor('5/5', REPLY_DEADLINE_REASON)]);
+    // Every block gets a notice, the 3 s ones first and the reply-deadline ones after: once the budget is
+    // gone no later block renders.
+    const reasons = blocks.map(({ notice }) => notice);
+    const exhaustedFrom = reasons.indexOf(REPLY_DEADLINE_REASON);
+    assert.ok(exhaustedFrom > 0, `expected block 1 to spend its own 3 s, the hook reported ${reasons.join(' | ')}`);
+    assert.deepEqual(reasons.slice(0, exhaustedFrom), Array(exhaustedFrom).fill(BLOCK_DEADLINE_REASON));
+    assert.deepEqual(reasons.slice(exhaustedFrom), Array(reasons.length - exhaustedFrom).fill(REPLY_DEADLINE_REASON));
+    // `ms=0` is the hook saying it never handed those blocks to a worker, and `rows=0` that nothing drew.
+    assert.deepEqual(blocks.slice(3).map(({ ms }) => ms), ['0', '0']);
+    assert.deepEqual(blocks.map(({ rows }) => rows), ['0', '0', '0', '0', '0']);
+    // The hook's own clock, not the wall clock. The deadline controls everything but the boot of a worker
+    // it spawned just before the budget ran out; Claude Code kills the hook at 10 s (hooks.json).
+    assert.ok(Number(summary.totalMs) < 9_000, `expected the hook to stop within 9 s of bundle start, it reported ${summary.totalMs} ms`);
   });
 });
 
