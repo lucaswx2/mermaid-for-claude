@@ -1,33 +1,33 @@
 // Measuring the terminal on every reply (ADR-0008). A Windows hook process runs on an invisible console
-// that always reports 120x30, so the live width comes from the console of an ancestor, read by the helper
+// that always reports 120x30, so the live width comes from the console of an ancestor, read by the probe
 // that hooks/session-start.sh compiles from hooks/console-width.cs; elsewhere /dev/tty answers directly.
 // When neither answers, the width the SessionStart hook cached for this session does, and past that the
-// caller falls back to 120. Nothing here throws, blocks or writes: a failed measurement is `none`.
+// caller falls back to 120. Nothing here throws or writes: a failed measurement is `none`.
 import { spawnSync } from 'node:child_process';
-import { closeSync, openSync, readFileSync, statSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { closeSync, constants, openSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { WriteStream } from 'node:tty';
 import { logTrace } from './trace.js';
 import { positiveInteger } from './width-limit.js';
 
-export type TerminalWidth = { source: 'live' | 'tty' | 'cache'; columns: number } | { source: 'none' };
+export type TerminalWidth = { source: 'live' | 'tty' | 'cache' | 'fake'; columns: number } | { source: 'none' };
 
-// A console that answers takes about 160 ms on Windows; a second is already a broken machine.
-const HELPER_TIMEOUT_MS = 1_000;
+// The probe answers in 54-78 ms on an idle Windows machine and 265 ms at the 90th percentile under load,
+// so 400 ms covers a slow answer with margin. It is also the most the measurement may take out of the
+// 7 s reply deadline, which runs from bundle start: past it the cached width is the better trade.
+const PROBE_TIMEOUT_MS = 400;
 const CACHE_FOLDER = 'mermaid-for-claude';
-const CONSOLE_WIDTH_HELPER = 'console-width.exe';
-// Test seam (test/seams/stop-hook.mjs): no automated test has a console, so this stands in for the
-// platform measurement. A positive integer is the width it reports; anything else answers nothing.
-const FAKE_TERMINAL_WIDTH = 'MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH';
+const CONSOLE_WIDTH_PROBE = 'console-width.exe';
 
-const isDirectory = (path: string) => {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-};
+// The one test seam in the production path, and the whole rule for it. No automated test has a console,
+// so MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH stands in for the platform measurement: a positive integer
+// is the width it reports, anything else answers nothing. It is honoured only beside the marker
+// MERMAID_FOR_CLAUDE_TEST_SEAM, which only test/seams/stop-hook.mjs sets, so the variable left over in a
+// shell profile cannot change what a real session renders; and it answers under its own source name, so
+// the timing line can never present it as a measurement. hooks/session-start.sh reads the same pair.
+const FAKE_TERMINAL_WIDTH = 'MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH';
+const TEST_SEAM = 'MERMAID_FOR_CLAUDE_TEST_SEAM';
 
 const isFile = (path: string) => {
   try {
@@ -37,49 +37,49 @@ const isFile = (path: string) => {
   }
 };
 
-// Never under the plugin root (spec #16): the Claude configuration directory when it exists, else the OS
-// temp directory. hooks/session-start.sh derives the same path in bash and writes the cache file there.
-const cacheDirectory = () => {
-  const configDir = process.env['CLAUDE_CONFIG_DIR'] || join(homedir(), '.claude');
-  return isDirectory(configDir) ? join(configDir, CACHE_FOLDER) : join(tmpdir(), CACHE_FOLDER);
-};
+// Never under the plugin root (spec #16) and never the OS temp directory, which is world-writable and no
+// place for a compiled binary: CLAUDE_CONFIG_DIR, else `.claude` under the home directory.
+// hooks/session-start.sh derives the same path in bash, and a seam test drives both with it unset.
+const cacheDirectory = () => join(process.env['CLAUDE_CONFIG_DIR'] || join(homedir(), '.claude'), CACHE_FOLDER);
 
 const cacheFileFor = (sessionId: string) => {
   const name = sessionId.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'unknown';
   return join(cacheDirectory(), `terminal-${name}`);
 };
 
-// `<columns> <console pid>` as the SessionStart hook measured them; the pid is 0 off Windows. No cache
-// file is the ordinary first-reply case, not a failure.
+// `<columns> <console pid> <creation time>` as the SessionStart hook measured them; the pid and its
+// creation time are 0 off Windows. No cache file is the ordinary first-reply case, not a failure.
 const readCachedMeasurement = (sessionId: string) => {
-  const nothingCached = { columns: undefined, consolePid: undefined };
+  const nothingCached = { columns: undefined, console: [] as string[] };
   const cacheFile = cacheFileFor(sessionId);
   if (!isFile(cacheFile)) return nothingCached;
   try {
-    const [columns = '', consolePid = ''] = readFileSync(cacheFile, 'utf8').trim().split(/\s+/);
-    return { columns: positiveInteger(columns), consolePid: positiveInteger(consolePid) };
+    const [columns = '', consolePid = '', startedAt = ''] = readFileSync(cacheFile, 'utf8').trim().split(/\s+/);
+    const console = positiveInteger(consolePid) && positiveInteger(startedAt) ? [consolePid, startedAt] : [];
+    return { columns: positiveInteger(columns), console };
   } catch (err) {
     logTrace(`could not read the cached terminal width from ${cacheFile}`, err);
     return nothingCached;
   }
 };
 
-// The helper prints `<columns> <console pid>` and exits 0, or prints nothing and exits 1. The pid the
-// SessionStart hook cached saves it the ancestry walk, which needs every process in the chain alive.
-const consoleColumns = (consolePid: number | undefined) => {
-  const helper = join(cacheDirectory(), CONSOLE_WIDTH_HELPER);
-  if (!isFile(helper)) return undefined;
+// The probe prints `<columns> <console pid> <creation time>` and exits 0, or prints nothing and exits 1.
+// The pid and creation time the SessionStart hook cached save it the ancestry walk, which needs every
+// process in the chain alive; only that hook writes the cache, so nothing is written back here.
+const consoleColumns = (console: string[]) => {
+  const probe = join(cacheDirectory(), CONSOLE_WIDTH_PROBE);
+  if (!isFile(probe)) return undefined;
   try {
-    const answer = spawnSync(helper, consolePid === undefined ? [] : [String(consolePid)], {
+    const answer = spawnSync(probe, console, {
       encoding: 'utf8',
-      timeout: HELPER_TIMEOUT_MS,
+      timeout: PROBE_TIMEOUT_MS,
       stdio: ['ignore', 'pipe', 'ignore'],
       windowsHide: true,
     });
     if (answer.status !== 0) return undefined;
     return positiveInteger(answer.stdout?.split(/\s+/)[0]);
   } catch (err) {
-    logTrace('the console width helper could not be run', err);
+    logTrace('the console width probe could not be run', err);
     return undefined;
   }
 };
@@ -93,14 +93,15 @@ const closeQuietly = (fd: number | undefined, stream: WriteStream | undefined) =
   }
 };
 
-// Opening /dev/tty never blocks: with no controlling terminal it fails at once. Read-write first,
-// because that is what a tty stream wants, then read-only for a terminal that allows nothing else.
+// O_NONBLOCK so that a terminal which would wait for carrier on open cannot hold up the reply; the
+// window size is readable either way. Read-write first, because that is what a tty stream wants, then
+// read-only for a terminal that allows nothing else.
 const ttyColumns = () => {
-  for (const flags of ['r+', 'r']) {
+  for (const access of [constants.O_RDWR, constants.O_RDONLY]) {
     let fd: number | undefined;
     let stream: WriteStream | undefined;
     try {
-      fd = openSync('/dev/tty', flags);
+      fd = openSync('/dev/tty', access | constants.O_NONBLOCK);
       stream = new WriteStream(fd);
       if (stream.columns > 0) return stream.columns;
     } catch {
@@ -112,16 +113,31 @@ const ttyColumns = () => {
   return undefined;
 };
 
-const platformColumns = (consolePid: number | undefined) => {
+// `undefined` when the seam is not in play at all, so the platform is asked instead; a seam that is in
+// play answers for the platform, whether or not it names a width.
+const fakedColumns = () => {
+  if (!process.env[TEST_SEAM]) return undefined;
   const fake = process.env[FAKE_TERMINAL_WIDTH];
-  if (fake !== undefined) return positiveInteger(fake);
-  return process.platform === 'win32' ? consoleColumns(consolePid) : ttyColumns();
+  return fake === undefined ? undefined : { columns: positiveInteger(fake) };
+};
+
+// The platform rung of the ladder, naming which of the three answered. It stands alone: the cache
+// below it still answers when this one does not, faked or not.
+const platformColumns = (console: string[]): TerminalWidth | undefined => {
+  const faked = fakedColumns();
+  if (faked) return faked.columns === undefined ? undefined : { source: 'fake', columns: faked.columns };
+  if (process.platform === 'win32') {
+    const columns = consoleColumns(console);
+    return columns === undefined ? undefined : { source: 'live', columns };
+  }
+  const columns = ttyColumns();
+  return columns === undefined ? undefined : { source: 'tty', columns };
 };
 
 export const measureTerminalWidth = (sessionId: string): TerminalWidth => {
   const cached = readCachedMeasurement(sessionId);
-  const columns = platformColumns(cached.consolePid);
-  if (columns !== undefined) return { source: process.platform === 'win32' ? 'live' : 'tty', columns };
+  const platform = platformColumns(cached.console);
+  if (platform) return platform;
   if (cached.columns !== undefined) return { source: 'cache', columns: cached.columns };
   return { source: 'none' };
 };

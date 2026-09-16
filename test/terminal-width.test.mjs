@@ -5,13 +5,12 @@
 // measurement in every case but one, which drops the fake and asserts only that measuring for real costs
 // the reply nothing. What a console or a tty actually answers is verified by hand and kept in ADR-0008.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
 import { cacheDir, cacheFileFor, cacheTerminalWidth, configDir, fence, fixture, root, runSessionStart, runStopHook, snapshot } from './seams/stop-hook.mjs';
 
-// The name the timing line gives the platform measurement: the Windows console helper, or /dev/tty.
-const LIVE_SOURCE = process.platform === 'win32' ? 'live' : 'tty';
 const WIDE_DIAGRAM_COLUMNS = 208;
 
 const noticeFor = (limit) => `mermaid-for-claude: could not render diagram 1/1 (sequenceDiagram): ${WIDE_DIAGRAM_COLUMNS} columns wide, limit is ${limit}`;
@@ -19,13 +18,27 @@ const terminalField = (stderr) => stderr.match(/ terminal=(\S+)/)?.[1];
 const widthLimitField = (stderr) => stderr.match(/ widthLimit=(\d+)/)?.[1];
 const wideReply = () => fence(fixture('size-sequence-wide'));
 
+// Scratch directories for the cases that cannot share the seam's: one for the runs that measure the real
+// platform, one standing in for a home directory when CLAUDE_CONFIG_DIR is unset.
+const scratchDirectory = (name) => {
+  const directory = mkdtempSync(join(tmpdir(), `mermaid-for-claude-${name}-`));
+  process.on('exit', () => {
+    try {
+      rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+    } catch {}
+  });
+  return directory;
+};
+const caseConfigDir = scratchDirectory('case');
+const scratchHome = scratchDirectory('home');
+
 beforeEach(() => rmSync(cacheFileFor(), { force: true }));
 
 describe('the width limit on a reply', () => {
   it('is the measured terminal width minus the four columns of the Stop says: indent', () => {
     const { output, stderr } = runStopHook(wideReply(), { MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '188' });
     assert.equal(output.systemMessage, noticeFor(184));
-    assert.equal(terminalField(stderr), `188/${LIVE_SOURCE}`);
+    assert.equal(terminalField(stderr), '188/fake');
     assert.equal(widthLimitField(stderr), '184');
   });
 
@@ -53,7 +66,7 @@ describe('the width limit on a reply', () => {
     cacheTerminalWidth(100);
     const { output, stderr } = runStopHook(wideReply(), { MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '188' });
     assert.equal(output.systemMessage, noticeFor(184));
-    assert.equal(terminalField(stderr), `188/${LIVE_SOURCE}`);
+    assert.equal(terminalField(stderr), '188/fake');
   });
 
   it('falls back to 120 when nothing answers and nothing is cached', () => {
@@ -75,7 +88,7 @@ describe('the width limit on a reply', () => {
   // The one case that drops the fake and lets the platform answer for itself. What it answers depends on
   // the machine — nothing under CI, a real width in a developer's terminal — so it asserts the shape
   // instead of a number: a reply that survives, one timing line and no trace, whatever /dev/tty or the
-  // console helper does. It is what CI on ubuntu and macos has to say about the /dev/tty path.
+  // console width probe does. It is what CI on ubuntu and macos has to say about the /dev/tty path.
   it('measures the platform for real without throwing, hanging or adding a line to the reply', () => {
     const { output, stderr } = runStopHook(wideReply(), { MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: undefined });
     assert.match(terminalField(stderr), /^(none\/none|[1-9]\d*\/(live|tty|cache))$/);
@@ -91,13 +104,59 @@ describe('the width limit on a reply', () => {
   });
 });
 
+// The fake is a seam, not a second override: it answers under its own source name so the timing line can
+// never call it a measurement, and only when the seam marker is set beside it, so a variable left over in
+// someone's shell profile cannot quietly change what a real session renders. Both cases compare the run
+// against one with no fake at all, which is what "the fake changed nothing" means on any machine.
+describe('the faked measurement', () => {
+  // A width no terminal is: an ungated fake would show up as 37 or a limit of 33 wherever these run,
+  // including a developer's own 188-column window.
+  const IMPLAUSIBLE_COLUMNS = '37';
+  // Its own configuration directory, so a case that measures for real cannot leave a compiled probe
+  // where the cases that must measure nothing would find it.
+  const withoutSeam = { MERMAID_FOR_CLAUDE_TEST_SEAM: undefined, CLAUDE_CONFIG_DIR: caseConfigDir };
+
+  it('answers as its own source, never as a live measurement', () => {
+    const { stderr } = runStopHook(wideReply(), { MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '188' });
+    assert.equal(terminalField(stderr), '188/fake');
+  });
+
+  it('changes nothing on a reply when the seam marker is absent', () => {
+    const ignored = runStopHook(wideReply(), { ...withoutSeam, MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: IMPLAUSIBLE_COLUMNS });
+    const none = runStopHook(wideReply(), { ...withoutSeam, MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: undefined });
+    assert.doesNotMatch(terminalField(ignored.stderr), /fake/);
+    assert.equal(terminalField(ignored.stderr), terminalField(none.stderr));
+    assert.equal(ignored.output.systemMessage, none.output.systemMessage);
+  });
+
+  it('changes nothing at session start when the seam marker is absent', () => {
+    const context = (fake) =>
+      runSessionStart({ ...withoutSeam, MERMAID_FOR_CLAUDE_MAX_WIDTH: '', MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: fake }).output.hookSpecificOutput.additionalContext;
+    assert.equal(context(IMPLAUSIBLE_COLUMNS), context(undefined));
+  });
+});
+
 describe('the measurement at session start', () => {
-  it('caches the width and the console pid outside the plugin root, keyed by the session id', () => {
+  it('caches the width and the console it came from outside the plugin root, keyed by the session id', () => {
     runSessionStart({ MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '188' });
     const cacheFile = cacheFileFor();
     assert.ok(cacheFile.startsWith(configDir), `${cacheFile} must sit under the Claude configuration directory`);
     assert.ok(!cacheFile.startsWith(root), `${cacheFile} must not sit under the plugin root`);
-    assert.equal(readFileSync(cacheFile, 'utf8').trim(), '188 0');
+    assert.equal(readFileSync(cacheFile, 'utf8').trim(), '188 0 0', 'columns, console pid and its creation time');
+  });
+
+  // The two copies of the cache path, bash and TypeScript, only meet on a real machine. With
+  // CLAUDE_CONFIG_DIR set they could both be wrong in the same way, so this drops it and leaves them the
+  // home directory to find on their own: the script writes, and the bundle has to read what it wrote.
+  it('derives the same path as the bundle from the home directory when CLAUDE_CONFIG_DIR is unset', () => {
+    const homeEnv = { CLAUDE_CONFIG_DIR: undefined, HOME: scratchHome, USERPROFILE: scratchHome };
+    runSessionStart({ ...homeEnv, MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '188' });
+    const expected = join(scratchHome, '.claude', 'mermaid-for-claude', 'terminal-test-session');
+    assert.ok(existsSync(expected), `the SessionStart hook should have cached at ${expected}`);
+
+    const { output, stderr } = runStopHook(wideReply(), homeEnv);
+    assert.equal(terminalField(stderr), '188/cache', 'the bundle should read the file the script wrote');
+    assert.equal(output.systemMessage, noticeFor(184));
   });
 
   it('hands the width it measured to the Stop hook when the next reply measures nothing', () => {

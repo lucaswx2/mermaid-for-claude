@@ -3,12 +3,13 @@
 // back what they print. Every test file drives the hooks through this module; none imports a renderer or
 // the dispatcher directly.
 //
-// Two things are fixed for every child (ADR-0008). CLAUDE_CONFIG_DIR points at a scratch directory, so no
-// test reads or writes the developer's own terminal-width cache. MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH
-// is `0`, which stands in for the platform measurement answering nothing: no automated test has a
-// console, and a developer running the tests inside a real terminal must see the widths CI sees. A test
-// that wants a terminal passes a positive integer for it; a test that wants the cache writes the cache
-// file with `cacheTerminalWidth`.
+// Three things are fixed for every child (ADR-0008). CLAUDE_CONFIG_DIR points at a scratch directory, so
+// no test reads or writes the developer's own terminal-width cache. MERMAID_FOR_CLAUDE_TEST_SEAM marks
+// the child as one of these, which is what lets the fake below be honoured at all — src/terminal-width.ts
+// carries that rule. MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH is `0`, which stands in for the platform
+// measurement answering nothing: no automated test has a console, and a developer running the tests
+// inside a real terminal must see the widths CI sees. A test that wants a terminal passes a positive
+// integer for it; a test that wants the cache writes the cache file with `cacheTerminalWidth`.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,10 +33,10 @@ process.on('exit', () => {
   } catch {}
 });
 
-// What hooks/session-start.sh writes after measuring: `<columns> <console pid>`.
-export const cacheTerminalWidth = (columns, consolePid = 0) => {
+// What hooks/session-start.sh writes after measuring: `<columns> <console pid> <its creation time>`.
+export const cacheTerminalWidth = (columns, consolePid = 0, startedAt = 0) => {
   mkdirSync(cacheDir, { recursive: true });
-  writeFileSync(cacheFileFor(), `${columns} ${consolePid}\n`);
+  writeFileSync(cacheFileFor(), `${columns} ${consolePid} ${startedAt}\n`);
 };
 
 // Absolute path of the bash in use, so a test may empty PATH without losing bash itself.
@@ -52,6 +53,7 @@ const childEnv = (env) =>
       ...process.env,
       CLAUDE_PLUGIN_ROOT: root,
       CLAUDE_CONFIG_DIR: configDir,
+      MERMAID_FOR_CLAUDE_TEST_SEAM: '1',
       MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: '0',
       ...env,
     }).filter(([, value]) => value !== undefined),

@@ -1,7 +1,8 @@
 // One `key=value` line on stderr per reply with a diagram (spec #16): the reply summary, then one
 // `dN=type ms=… rows=… width=…` group per block with its notice reason when it has one. `terminal=` is
-// the measured width and where it came from (ADR-0008): `live` for the Windows console helper, `tty` for
-// /dev/tty, `cache` for the width the SessionStart hook measured, `none/none` when nothing answered.
+// the measured width and where it came from (ADR-0008): `live` for the Windows console width probe,
+// `tty` for /dev/tty, `cache` for the width the SessionStart hook measured, `fake` for the test seam,
+// and `none/none` when nothing answered.
 import type { RenderOptions } from './render-block.js';
 import type { TimedRender } from './render-deadline.js';
 import type { TerminalWidth } from './terminal-width.js';
