@@ -40,8 +40,16 @@ const stripMetadata = (source: string) => {
   return { headerLine: (lines[0] ?? '').trim(), lines: lines.slice(1) };
 };
 
+// A colon right after the header token closes the type declaration in mermaid's grammar (`gitGraph:`,
+// `gitGraph :`, `radar-beta:`), so it is not part of the header's arguments and comes off once here: the
+// type table already ignored it when picking the entry, but the built-in renderers read the header line
+// itself and rejected `gitGraph:` as an unsupported line (#38). A colon after an argument stays, because
+// there mermaid makes it the declaration's own terminator (`gitGraph LR:`) and the renderer expects it.
+const withoutTokenColon = (headerLine: string) => headerLine.replace(/^(\S+)\s*:(?=\s|$)/, '$1');
+
 export const readHeader = (source: string) => {
-  const { headerLine, lines } = stripMetadata(source);
+  const { headerLine: rawHeaderLine, lines } = stripMetadata(source);
+  const headerLine = withoutTokenColon(rawHeaderLine);
   const token = headerLine.split(/\s+/)[0] ?? '';
   return { headerLine, lines, token, entry: DIAGRAM_TYPES[diagramTypeKey(token)] };
 };
