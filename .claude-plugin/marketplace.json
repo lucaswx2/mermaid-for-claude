@@ -1,5 +1,6 @@
 {
   "name": "mermaid-for-claude",
+  "description": "Marketplace for mermaid-for-claude: mermaid blocks in Claude Code replies rendered as text diagrams inside the terminal.",
   "owner": {
     "name": "Lucas Medeiros"
   },
