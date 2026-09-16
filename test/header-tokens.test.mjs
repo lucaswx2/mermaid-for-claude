@@ -1,7 +1,8 @@
 // Coverage of the type table through the Stop hook seam (ticket #26, ADR-0004, ADR-0006, ADR-0007): every key of
 // DIAGRAM_TYPES gets a minimal block and the result its kind promises (baseline and built-in render, notice-only
-// gives `unsupported type`), and every recommended type
-// renders its fixture at 120 columns. The key list is a copy of src/diagram-types.ts; the counts keep it honest.
+// gives `unsupported type`), every recommended type renders its fixture at 120 columns, and every built-in
+// header also renders with a trailing colon (#38). The key list is a copy of src/diagram-types.ts; the counts
+// keep it honest.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { fence, fixture, runStopHook } from './seams/stop-hook.mjs';
@@ -100,4 +101,26 @@ describe('the seventeen recommended types', () => {
       assert.match(output.systemMessage, diagram(name));
     });
   }
+});
+
+// A trailing colon on the header token (ticket #38): mermaid's grammar spells `gitGraph:`, `gitGraph LR:`
+// and `radar-beta:`, the type table has always ignored the colon when it picks the entry, and every
+// built-in renderer now sees the header without it. `gitGraph LR:` rides on the gitgraph-plain fixture.
+describe('a header token with a trailing colon', () => {
+  for (const [, , name, header, body] of TOKENS.filter(([, kind]) => kind === 'builtin')) {
+    it(`renders ${header}: as a ${name} diagram`, () => {
+      const { output } = runStopHook(fence(`${header}:\n    ${body}\n`), WIDE);
+      assert.match(output.systemMessage, diagram(name));
+    });
+  }
+
+  it('still gives the unsupported type notice for an unknown token, and drops the colon from its name', () => {
+    const { output } = runStopHook(fence('doodle:\n    A --> B\n'), WIDE);
+    assert.equal(output.systemMessage, notice('doodle', 'unsupported type'));
+  });
+
+  it('still gives the unsupported line notice for a body line outside the subset', () => {
+    const { output } = runStopHook(fence('pie:\n    Cats : 30\n'), WIDE);
+    assert.equal(output.systemMessage, notice('pie', 'unsupported line: Cats : 30'));
+  });
 });

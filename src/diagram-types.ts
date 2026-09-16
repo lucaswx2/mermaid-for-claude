@@ -1,5 +1,6 @@
 // The type table the dispatcher routes by (ADR-0004, ADR-0006): keyed by the lowercased header token
-// without a trailing ':' and without a -beta / -v2 suffix. `name` is the canonical type name printed in
+// without a -beta / -v2 suffix; a trailing ':' comes off in diagram-header.ts, before the key is read
+// (#38), so every renderer and the table agree on one spelling. `name` is the canonical type name printed in
 // headers and notices (spec #16). A baseline entry carries the header token the baseline renderer accepts;
 // a builtin entry carries the renderer written in this plugin for that type; a notice entry only ever
 // produces the `unsupported type` notice.
@@ -62,4 +63,4 @@ export const DIAGRAM_TYPES: Readonly<Record<string, DiagramType>> = {
   info: notice('info'),
 };
 
-export const diagramTypeKey = (token: string) => token.replace(/:$/, '').toLowerCase().replace(/-(beta|v2)$/, '');
+export const diagramTypeKey = (token: string) => token.toLowerCase().replace(/-(beta|v2)$/, '');
