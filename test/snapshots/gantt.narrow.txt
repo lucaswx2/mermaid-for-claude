@@ -1,0 +1,28 @@
+mermaid-for-claude: diagram 1/1 (gantt)
+Adding GANTT diagram functionality to mermaid
+
+                        2014-01-06  2014-01-12     2014-01-19
+                        ┼───────────┼──────────────┼──────────────┼────
+A section
+  Completed task        ░░░░
+  Active task                 ▒▒▒▒▒▒▒▒▒▒▒
+  Future task                            ███████████████
+  Future task2                                          ███████████████
+Critical tasks
+  Completed task in t…  ░░                                              crit
+  Implement parser an…      ░░░░                                        crit
+  Create tests for pa…          ▒▒▒▒▒▒▒▒▒▒▒                             crit
+  Future task in crit…                     ███████████████              crit
+  Create tests for re…                                    ████
+  Add to mermaid                                              ██
+  Functionality added                                           ◆
+Documentation
+  Describe gantt synt…      ▒▒▒▒▒▒
+  Add gantt diagram t…                ██
+  Add another diagram…                █████
+Last section
+  Describe gantt synt…                     ██████
+  Add gantt diagram t…                               ██
+  Add another diagram…                                 ████
+
+                        █ planned   ░ done   ▒ active   ◆ milestone

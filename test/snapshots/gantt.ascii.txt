@@ -1,0 +1,28 @@
+mermaid-for-claude: diagram 1/1 (gantt)
+Adding GANTT diagram functionality to mermaid
+
+                                      2014-01-06           2014-01-12              2014-01-19
+                                      +--------------------+-----------------------+------------------------+------
+A section
+  Completed task                      ......
+  Active task                                   =================
+  Future task                                                    #########################
+  Future task2                                                                            #########################
+Critical tasks
+  Completed task in the critical ...  ...                                                                           crit
+  Implement parser and jison                .......                                                                 crit
+  Create tests for parser                          ==================                                               crit
+  Future task in critical line                                       ########################                       crit
+  Create tests for renderer                                                                  #######
+  Add to mermaid                                                                                    ####
+  Functionality added                                                                                   *
+Documentation
+  Describe gantt syntax                     ===========
+  Add gantt diagram to demo page                              ###
+  Add another diagram to demo page                            #######
+Last section
+  Describe gantt syntax                                              ###########
+  Add gantt diagram to demo page                                                       ##
+  Add another diagram to demo page                                                       #######
+
+                                      # planned   . done   = active   * milestone
