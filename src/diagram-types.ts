@@ -3,6 +3,7 @@
 // headers and notices (spec #16). A baseline entry carries the header token the baseline renderer accepts;
 // a builtin entry carries the renderer written in this plugin for that type; a pending entry is a built-in
 // slot whose renderer has not landed yet; a notice entry only ever produces the `unsupported type` notice.
+import { renderGantt } from './renderers/gantt.js';
 import { renderGitGraph } from './renderers/git-graph.js';
 import { renderJourney } from './renderers/journey.js';
 import { renderKanban } from './renderers/kanban.js';
@@ -43,7 +44,7 @@ export const DIAGRAM_TYPES: Readonly<Record<string, DiagramType>> = {
   kanban: builtin('kanban', renderKanban),
   packet: builtin('packet', renderPacket),
   radar: builtin('radar', renderRadar),
-  gantt: pending('gantt'),
+  gantt: builtin('gantt', renderGantt),
   quadrantchart: pending('quadrantChart'),
   block: pending('block'),
   treemap: pending('treemap'),

@@ -1,0 +1,15 @@
+gantt
+    title mermaid-for-claude v1 plan
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+    section Charting
+        Map and research      :done, a1, 2026-09-10, 1d
+        ADR-0001 to ADR-0003  :done, a2, 2026-09-11, 1d
+    section Prototypes
+        S tier renderers      :done, p1, 2026-09-12, 1d
+        M tier renderers      :active, p2, after p1, 1d
+        Size policy in TUI    :p3, after p2, 2d
+    section Release
+        Spec via to-spec      :s1, after p3, 2d
+        Build and CI          :s2, after s1, 5d
+        Publish v1            :milestone, after s2, 0d
