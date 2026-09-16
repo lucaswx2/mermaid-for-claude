@@ -1,6 +1,7 @@
 // Size policy (ADR-0005, ADR-0008) driven through the Stop hook seam: the width limit with its override
 // and fallback, the per-reply output budget, and the notices both produce. MERMAID_FOR_CLAUDE_MAX_WIDTH
-// is fixed explicitly wherever a snapshot is compared, so a runner with or without a tty prints the same.
+// is fixed explicitly wherever a snapshot is compared, so a runner with or without a terminal prints the
+// same; the live width the terminal would give has its own file, test/terminal-width.test.mjs.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { fence, fixture, runStopHook, snapshot } from './seams/stop-hook.mjs';
@@ -35,7 +36,7 @@ describe('width limit', () => {
     assert.equal(output.systemMessage, snapshot('size-sequence-wide'));
   });
 
-  it('falls back to 120 when the override is unset and there is no tty', () => {
+  it('falls back to 120 when the override is unset and no terminal answers', () => {
     assert.equal(process.stdout.isTTY, undefined, 'this test must run without a tty (node --test pipes stdout)');
     const { output } = runStopHook(fence(fixture('size-sequence-wide')), { MERMAID_FOR_CLAUDE_MAX_WIDTH: undefined });
     assert.equal(output.systemMessage, 'mermaid-for-claude: could not render diagram 1/1 (sequenceDiagram): 208 columns wide, limit is 120');
