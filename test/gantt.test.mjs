@@ -221,13 +221,14 @@ describe('MERMAID_FOR_CLAUDE_MAX_WIDTH=76', () => {
     assert.match(labelRow, /Sep 10 {2,}Sep/, 'a coarser step than at 120 columns');
   });
 
-  it('places tickInterval ticks as d3 does: restarting at the month for days, Sundays for weeks', () => {
+  it('places tickInterval ticks as d3 does: restarting at the month for days, Sundays and milliseconds from the epoch', () => {
     const labelsOf = (source) => axisOf(render(source)).labelRow.trim().split(/\s+/);
-    const chart = (axisFormat, tickInterval, task) => `gantt\n    dateFormat YYYY-MM-DD\n    axisFormat ${axisFormat}\n    tickInterval ${tickInterval}\n    Task :a, ${task}\n`;
+    const chart = (axisFormat, tickInterval, task, dateFormat = 'YYYY-MM-DD') => `gantt\n    dateFormat ${dateFormat}\n    axisFormat ${axisFormat}\n    tickInterval ${tickInterval}\n    Task :a, ${task}\n`;
     assert.deepEqual(labelsOf(chart('%d', '2day', '2024-01-04, 10d')), ['04', '05', '07', '09', '11', '13']);
     assert.deepEqual(labelsOf(chart('%d', '1week', '2024-01-04, 20d')), ['04', '07', '14', '21']);
     assert.deepEqual(labelsOf(chart('%H', '12hour', '2024-01-04, 2d')), ['00', '12', '00', '12']);
     assert.deepEqual(labelsOf(chart('%m', '1month', '2024-01-15, 100d')), ['01', '02', '03', '04']);
+    assert.deepEqual(labelsOf(chart('%S.%L', '700millisecond', '1000, 2500ms', 'x')), ['01.000', '01.400', '02.100', '02.800']);
   });
 
   it('gives a notice below about 32 columns', () => {

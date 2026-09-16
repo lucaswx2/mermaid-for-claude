@@ -219,15 +219,15 @@ const monthStart = (at: Date, monthsAhead = 0) => Date.UTC(at.getUTCFullYear(), 
 // Where a step's ticks fall, as d3's `interval.every(count)` places them for mermaid's axis: the first tick
 // on or before a time, and the tick after one. A tick is a time whose unit field (the millisecond of its
 // second, ..., the day of its month, the month of its year) is a multiple of the count, so the ticks
-// restart at every boundary of the parent unit; weeks are Sundays counted from the epoch (the `weekday`
-// line is ignored) and years are multiples of the count.
+// restart at every boundary of the parent unit; milliseconds and weeks (Sundays; the `weekday` line is
+// ignored) are counted from the epoch and years are multiples of the count.
 type TickRule = { first: (from: number, count: number) => number; next: (tick: number, count: number) => number };
 const fixedRule = (unitMs: number, parentMs: number): TickRule => ({
   first: (from, count) => floorTo(from, parentMs) + floorTo(from - floorTo(from, parentMs), count * unitMs),
   next: (tick, count) => Math.min(tick + count * unitMs, floorTo(tick, parentMs) + parentMs),
 });
 const TICK_RULES: Readonly<Record<TickUnit, TickRule>> = {
-  millisecond: fixedRule(1, 1000),
+  millisecond: { first: (from, count) => floorTo(from, count), next: (tick, count) => tick + count },
   second: fixedRule(1000, 60_000),
   minute: fixedRule(60_000, 3_600_000),
   hour: fixedRule(3_600_000, DAY),
