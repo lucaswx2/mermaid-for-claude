@@ -5,7 +5,15 @@
   "author": {
     "name": "Lucas Medeiros"
   },
+  "homepage": "https://github.com/lucaswx2/mermaid-for-claude",
   "repository": "https://github.com/lucaswx2/mermaid-for-claude",
   "license": "MIT",
-  "keywords": ["mermaid", "diagram", "terminal", "ascii"]
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "terminal",
+    "ascii",
+    "claude-code",
+    "plugin"
+  ]
 }
