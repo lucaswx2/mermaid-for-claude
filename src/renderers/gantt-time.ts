@@ -120,8 +120,8 @@ export const compileDateFormat = (format: string): DateFormat => {
 
 // --- axisFormat: d3-time-format directives ------------------------------------------------------------
 
-const startOfYear = (at: Date) => Date.UTC(at.getUTCFullYear(), 0, 1);
-const dayOfYear = (at: Date) => Math.floor((at.getTime() - startOfYear(at)) / DAY);
+const yearStart = (at: Date, yearsAhead = 0) => Date.UTC(at.getUTCFullYear() + yearsAhead, 0, 1);
+const dayOfYear = (at: Date) => Math.floor((at.getTime() - yearStart(at)) / DAY);
 // d3 %U / %W: the number of Sundays (Mondays) between the last day of the previous year and the date.
 const weekOfYear = (at: Date, firstWeekday: number) => Math.floor((dayOfYear(at) + 7 - ((at.getUTCDay() - firstWeekday + 7) % 7)) / 7);
 
@@ -170,9 +170,15 @@ export const formatAxis = (ms: number, format: string) => {
 
 // --- durations and tick intervals --------------------------------------------------------------------
 
+// Months added as dayjs sets them: the day of the month is kept, clamped to the days the target month has
+// (January 31 plus one month is February 29, not March 2).
 export const addMonths = (ms: number, months: number) => {
   const at = new Date(ms);
+  const day = at.getUTCDate();
+  at.setUTCDate(1);
   at.setUTCMonth(at.getUTCMonth() + months);
+  const daysInMonth = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 0)).getUTCDate();
+  at.setUTCDate(Math.min(day, daysInMonth));
   return at.getTime();
 };
 
@@ -196,7 +202,6 @@ export const addDuration = (ms: number, text: string) => {
 export type TickUnit = 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 export type TickStep = { unit: TickUnit; count: number };
 
-const FIXED_UNIT_MS: Readonly<Partial<Record<TickUnit, number>>> = { millisecond: 1, second: 1000, minute: 60_000, hour: 3_600_000, day: DAY, week: 7 * DAY };
 const step = (unit: TickUnit, count: number): TickStep => ({ unit, count });
 
 // From 1 second to 1 year; the axis takes the first step whose labels do not overlap.
@@ -208,30 +213,51 @@ export const TICK_LADDER: readonly TickStep[] = [
   step('month', 1), step('month', 3), step('month', 6), step('year', 1),
 ];
 
-// The first tick on or before `from`: a calendar boundary for months and years, a Sunday for weeks (the
-// `weekday` line is ignored), else a multiple of the step counted from the epoch.
-const firstTickOnOrBefore = (from: number, { unit, count }: TickStep) => {
-  const at = new Date(from);
-  if (unit === 'year') return startOfYear(at);
-  if (unit === 'month') return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1);
-  const size = FIXED_UNIT_MS[unit] ?? 1;
-  if (unit === 'week') {
-    const day = from - (from % DAY);
-    return day - new Date(day).getUTCDay() * DAY;
-  }
-  return from - (from % (count * size));
-};
+const floorTo = (value: number, size: number) => Math.floor(value / size) * size;
+const monthStart = (at: Date, monthsAhead = 0) => Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + monthsAhead, 1);
 
-const nextTick = (ms: number, { unit, count }: TickStep) => {
-  if (unit === 'year') return addMonths(ms, 12 * count);
-  if (unit === 'month') return addMonths(ms, count);
-  return ms + count * (FIXED_UNIT_MS[unit] ?? 1);
+// Where a step's ticks fall, as d3's `interval.every(count)` places them for mermaid's axis: the first tick
+// on or before a time, and the tick after one. A tick is a time whose unit field (the millisecond of its
+// second, ..., the day of its month, the month of its year) is a multiple of the count, so the ticks
+// restart at every boundary of the parent unit; weeks are Sundays counted from the epoch (the `weekday`
+// line is ignored) and years are multiples of the count.
+type TickRule = { first: (from: number, count: number) => number; next: (tick: number, count: number) => number };
+const fixedRule = (unitMs: number, parentMs: number): TickRule => ({
+  first: (from, count) => floorTo(from, parentMs) + floorTo(from - floorTo(from, parentMs), count * unitMs),
+  next: (tick, count) => Math.min(tick + count * unitMs, floorTo(tick, parentMs) + parentMs),
+});
+const TICK_RULES: Readonly<Record<TickUnit, TickRule>> = {
+  millisecond: fixedRule(1, 1000),
+  second: fixedRule(1000, 60_000),
+  minute: fixedRule(60_000, 3_600_000),
+  hour: fixedRule(3_600_000, DAY),
+  day: {
+    first: (from, count) => monthStart(new Date(from)) + floorTo(new Date(from).getUTCDate() - 1, count) * DAY,
+    next: (tick, count) => Math.min(tick + count * DAY, monthStart(new Date(tick), 1)),
+  },
+  week: {
+    first: (from, count) => {
+      const sunday = floorTo(from, DAY) - new Date(floorTo(from, DAY)).getUTCDay() * DAY;
+      const sundaysSinceEpoch = Math.floor((sunday / DAY + 4) / 7);
+      return sunday - (sundaysSinceEpoch % count) * 7 * DAY;
+    },
+    next: (tick, count) => tick + count * 7 * DAY,
+  },
+  month: {
+    first: (from, count) => Date.UTC(new Date(from).getUTCFullYear(), floorTo(new Date(from).getUTCMonth(), count), 1),
+    next: (tick, count) => Math.min(addMonths(tick, count), yearStart(new Date(tick), 1)),
+  },
+  year: {
+    first: (from, count) => Date.UTC(floorTo(new Date(from).getUTCFullYear(), count), 0, 1),
+    next: (tick, count) => yearStart(new Date(tick), count),
+  },
 };
 
 // The ticks after `from` up to `to`, at most `limit` of them (a step finer than the columns stops early).
-export const ticksAfter = (from: number, to: number, tickStep: TickStep, limit: number) => {
+export const ticksAfter = (from: number, to: number, { unit, count }: TickStep, limit: number) => {
+  const rule = TICK_RULES[unit];
   const ticks: number[] = [];
-  for (let tick = firstTickOnOrBefore(from, tickStep); tick <= to && ticks.length < limit; tick = nextTick(tick, tickStep)) {
+  for (let tick = rule.first(from, count); tick <= to && ticks.length < limit; tick = rule.next(tick, count)) {
     if (tick > from) ticks.push(tick);
   }
   return ticks;

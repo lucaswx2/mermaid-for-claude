@@ -47,8 +47,8 @@ const REFERENCE = /^(after|until)\s+(.+)$/i;
 const wordsOf = (text: string) => text.split(/[\s,]+/).filter(Boolean).map((word) => word.toLowerCase());
 
 // The comma list after the colon: leading tags, then `[id,] [start,] end` by count.
-const parseTask = (title: string, data: string, inSection: boolean, line: string, ellipsis: string): TaskLine => {
-  const fields = data.split(',').map((field) => field.trim()).filter(Boolean);
+const parseTask = (title: string, fieldsText: string, inSection: boolean, line: string, ellipsis: string): TaskLine => {
+  const fields = fieldsText.split(',').map((field) => field.trim()).filter(Boolean);
   const tags = new Set<Tag>();
   while (fields.length && isTag(fields[0] ?? '')) {
     const tag = fields.shift() ?? '';
@@ -105,20 +105,22 @@ const dayExcluded = (chart: Chart, dateFormat: DateFormat, ms: number) => {
   return chart.excludes.includes(weekday) || spellings.some((text) => chart.excludes.includes(text));
 };
 
-const EXCLUDE_ITERATIONS_MAX = 10_000;
+const EXCLUDED_DAYS_MAX = 10_000;
 
 // Excluded days extend a duration-based task day by day, from the day after its start; the bar stops
-// before trailing excluded days while dependents start after them (mermaid's fixTaskDates).
+// before trailing excluded days while dependents start after them (mermaid's fixTaskDates, which gives
+// up after 10,000 days of extension).
 const extendPastExcludedDays = (chart: Chart, dateFormat: DateFormat, start: number, end: number): Timing => {
+  const extendedMax = end + EXCLUDED_DAYS_MAX * DAY;
   let extended = end;
   let renderEnd = end;
   let previousExcluded = false;
-  let iterations = 0;
   for (let probe = start + DAY; probe <= extended; probe += DAY) {
     if (!previousExcluded) renderEnd = extended;
     previousExcluded = dayExcluded(chart, dateFormat, probe);
-    if (previousExcluded) extended += DAY;
-    if ((iterations += 1) > EXCLUDE_ITERATIONS_MAX) throw new RenderError('excludes leave no valid day');
+    if (!previousExcluded) continue;
+    extended += DAY;
+    if (extended > extendedMax) throw new RenderError('excludes leave no valid day');
   }
   return { start, end: extended, renderEnd };
 };
@@ -247,12 +249,12 @@ const LEGEND: readonly { state: State; glyph: keyof Glyphs }[] = [
 const LEGEND_GAP = '   ';
 
 // Legend items three spaces apart, on as many rows as the bar area needs.
-const legendRows = (items: string[], width: number) => {
+const legendRows = (labels: string[], width: number) => {
   const rows: string[] = [];
-  for (const item of items) {
+  for (const label of labels) {
     const last = rows[rows.length - 1];
-    if (last !== undefined && codePointLength(last) + LEGEND_GAP.length + codePointLength(item) <= width) rows[rows.length - 1] = last + LEGEND_GAP + item;
-    else rows.push(item);
+    if (last !== undefined && codePointLength(last) + LEGEND_GAP.length + codePointLength(label) <= width) rows[rows.length - 1] = last + LEGEND_GAP + label;
+    else rows.push(label);
   }
   return rows;
 };
@@ -310,7 +312,7 @@ export const renderGantt = ({ headerLine, lines, widthLimit, useAscii }: Builtin
     else {
       const first = lastColumn(timing.start);
       const last = Math.max(first + 1, column(timing.renderEnd));
-      const glyph = glyphs[LEGEND.find((item) => item.state === state)?.glyph ?? 'bar'];
+      const glyph = glyphs[LEGEND.find((entry) => entry.state === state)?.glyph ?? 'bar'];
       for (let index = first; index < last; index += 1) cells[index] = glyph;
     }
     rows.push(labelCell(entry) + withVerts(cells).join('') + (entry.tags.has('crit') ? ' crit' : ''));
@@ -325,7 +327,7 @@ export const renderGantt = ({ headerLine, lines, widthLimit, useAscii }: Builtin
     rows.push(indent + cells.join(''));
   });
 
-  const legend = LEGEND.filter((item) => used.has(item.state) && (item.state !== 'planned' || used.size > 1)).map((item) => `${glyphs[item.glyph]} ${item.state}`);
+  const legend = LEGEND.filter((entry) => used.has(entry.state) && (entry.state !== 'planned' || used.size > 1)).map((entry) => `${glyphs[entry.glyph]} ${entry.state}`);
   if (legend.length) rows.push('', ...legendRows(legend, cols + critWidth).map((row) => indent + row));
   return rows;
 };

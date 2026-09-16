@@ -118,6 +118,11 @@ describe('excludes weekends', () => {
     assert.equal(next.search(BAR_GLYPHS), labelRow.indexOf('08', indent) - indent);
   });
 
+  it('extends a task longer than 10,000 days instead of giving up', () => {
+    const output = render('gantt\n    dateFormat YYYY-MM-DD\n    excludes weekends\n    Long :a, 2024-01-01, 12000d\n');
+    assert.match(output, /^mermaid-for-claude: diagram 1\/1 \(gantt\)\n/);
+  });
+
   it('honours weekend friday, includes and named weekdays', () => {
     const source = 'gantt\n    dateFormat YYYY-MM-DD\n    axisFormat %d\n    tickInterval 1day\n    excludes weekends, wednesday\n    includes 2024-01-05\n    weekend friday\n    Task :a, 2024-01-02, 3d\n    Next :after a, 1d\n';
     const { rows, labelRow, indent } = axisOf(render(source));
@@ -143,6 +148,17 @@ describe('durations', () => {
   it('adds hours exactly and weeks by seven days', () => {
     assert.equal(startOfNext(chart('    Task :a, 2024-01-01, 48h\n    Next :after a, 1d')), '03');
     assert.equal(startOfNext(chart('    Task :a, 2024-01-01, 1w\n    Next :after a, 1d')), '08');
+  });
+
+  it('keeps the day of the month when adding months, clamped to the target month as dayjs does', () => {
+    // `Next` starts where the task ends; `Ref` starts on the day dayjs would give, so the two bars line up.
+    const startsTogether = (task, reference) => {
+      const { rows } = axisOf(render(`gantt\n    dateFormat YYYY-MM-DD\n    Task :a, ${task}\n    Next :after a, 1d\n    Ref :r, ${reference}, 1d\n`));
+      const firstBar = (title) => rows.find((row) => row.startsWith(title)).search(BAR_GLYPHS);
+      assert.equal(firstBar('Next'), firstBar('Ref'));
+    };
+    startsTogether('2024-01-31, 1M', '2024-02-29');
+    startsTogether('2024-02-29, 1y', '2025-02-28');
   });
 
   it('adds inclusiveEndDates one day to an explicit end date', () => {
@@ -203,6 +219,15 @@ describe('MERMAID_FOR_CLAUDE_MAX_WIDTH=76', () => {
     assert.ok(tokens.length >= 4, 'more than one tick label');
     tokens.forEach((token, index) => assert.match(token, index % 2 === 0 ? /^Sep$/ : /^\d\d$/));
     assert.match(labelRow, /Sep 10 {2,}Sep/, 'a coarser step than at 120 columns');
+  });
+
+  it('places tickInterval ticks as d3 does: restarting at the month for days, Sundays for weeks', () => {
+    const labelsOf = (source) => axisOf(render(source)).labelRow.trim().split(/\s+/);
+    const chart = (axisFormat, tickInterval, task) => `gantt\n    dateFormat YYYY-MM-DD\n    axisFormat ${axisFormat}\n    tickInterval ${tickInterval}\n    Task :a, ${task}\n`;
+    assert.deepEqual(labelsOf(chart('%d', '2day', '2024-01-04, 10d')), ['04', '05', '07', '09', '11', '13']);
+    assert.deepEqual(labelsOf(chart('%d', '1week', '2024-01-04, 20d')), ['04', '07', '14', '21']);
+    assert.deepEqual(labelsOf(chart('%H', '12hour', '2024-01-04, 2d')), ['00', '12', '00', '12']);
+    assert.deepEqual(labelsOf(chart('%m', '1month', '2024-01-15, 100d')), ['01', '02', '03', '04']);
   });
 
   it('gives a notice below about 32 columns', () => {
