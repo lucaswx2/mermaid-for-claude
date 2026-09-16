@@ -1,26 +1,14 @@
-// Seam 2: the SessionStart hook as the user runs it. Spawn `bash hooks/session-start.sh` with a session
-// JSON on stdin and assert the additionalContext it prints. The parity test reads the script as text and
-// compares its type list and default width with the values the TypeScript source exports.
+// The SessionStart hook as the user runs it, driven through the seam. The parity test reads the script
+// as text and compares its type list, default width and `Stop says:` indent with what the TypeScript
+// source exports, then checks that both resolve a width the same way.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { transform } from 'esbuild';
-import { bash, root } from './seams/stop-hook.mjs';
+import { root, runSessionStart } from './seams/stop-hook.mjs';
 
 const script = join(root, 'hooks', 'session-start.sh');
-
-const runSessionStart = (env = {}) => {
-  const sessionInput = JSON.stringify({ session_id: 'test-session', hook_event_name: 'SessionStart', source: 'startup', cwd: root });
-  const child = spawnSync(bash, [script], {
-    input: sessionInput,
-    encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: root, ...env },
-  });
-  assert.equal(child.status, 0, `session-start.sh exited ${child.status}: ${child.stderr}`);
-  return { stdout: child.stdout, stderr: child.stderr, output: child.stdout ? JSON.parse(child.stdout) : {} };
-};
 
 const contextLine = (width) =>
   'mermaid-for-claude is active: ```mermaid blocks in your replies are rendered as text diagrams right below the reply in this terminal. ' +
@@ -91,14 +79,28 @@ describe('parity with the TypeScript source', () => {
     assert.equal(RECOMMENDED_TYPES.length, 17);
   });
 
-  it('uses the same default width as DEFAULT_WIDTH_LIMIT', async () => {
-    const { DEFAULT_WIDTH_LIMIT, resolveWidthLimit } = await importTypeScript('src/width-limit.ts');
-    const match = scriptText.match(/^default_width=(\d+)$/m);
-    assert.ok(match, 'session-start.sh declares default_width=N on its own line');
-    assert.equal(Number(match[1]), DEFAULT_WIDTH_LIMIT);
+  it('uses the same default width and Stop says: indent as the bundle', async () => {
+    const { DEFAULT_WIDTH_LIMIT, STOP_SAYS_INDENT, positiveInteger } = await importTypeScript('src/width-limit.ts');
+    const widthMatch = scriptText.match(/^default_width=(\d+)$/m);
+    assert.ok(widthMatch, 'session-start.sh declares default_width=N on its own line');
+    assert.equal(Number(widthMatch[1]), DEFAULT_WIDTH_LIMIT);
+    const indentMatch = scriptText.match(/^stop_says_indent=(\d+)$/m);
+    assert.ok(indentMatch, 'session-start.sh declares stop_says_indent=N on its own line');
+    assert.equal(Number(indentMatch[1]), STOP_SAYS_INDENT);
+
     for (const value of ['220', ' 80 ', '007', 'abc', '-5', '0', '12px', '']) {
-      const expected = resolveWidthLimit(value);
+      const expected = positiveInteger(value) ?? DEFAULT_WIDTH_LIMIT;
       assert.equal(runSessionStart({ MERMAID_FOR_CLAUDE_MAX_WIDTH: value }).output.hookSpecificOutput.additionalContext, contextLine(expected), `MAX_WIDTH=${JSON.stringify(value)} should resolve like the bundle`);
+    }
+  });
+
+  it('takes the measured terminal down to a width limit the same way as widthLimitFor', async () => {
+    const { widthLimitFor } = await importTypeScript('src/width-limit.ts');
+    for (const columns of ['188', '80', '124', '5', '4', '1', '0']) {
+      const measured = Number(columns);
+      const expected = widthLimitFor(measured > 0 ? { source: 'live', columns: measured } : { source: 'none' });
+      const { output } = runSessionStart({ MERMAID_FOR_CLAUDE_FAKE_TERMINAL_WIDTH: columns, MERMAID_FOR_CLAUDE_MAX_WIDTH: '' });
+      assert.equal(output.hookSpecificOutput.additionalContext, contextLine(expected), `a ${columns}-column terminal should give ${expected}`);
     }
   });
 });

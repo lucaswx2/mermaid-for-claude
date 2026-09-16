@@ -3,9 +3,10 @@
 import { readFileSync } from 'node:fs';
 import { assemblePayload } from './output-budget.js';
 import { elapsedSinceBundleStart, renderWithDeadline } from './render-deadline.js';
+import { measureTerminalWidth, type TerminalWidth } from './terminal-width.js';
 import { timingLineFor } from './timing-line.js';
 import { firstErrorLine, logTrace, PLUGIN_NAME } from './trace.js';
-import { enforceWidthLimit, resolveWidthLimit } from './width-limit.js';
+import { enforceWidthLimit, positiveInteger, widthLimitFor } from './width-limit.js';
 
 const NODE_MAJOR_REQUIRED = 20;
 // A ```mermaid fence, possibly indented inside a list item; the body is dedented by that indentation.
@@ -16,14 +17,18 @@ type HookOutput = { systemMessage?: string };
 // Env var truthiness (ticket #8): unset, empty, 0 and false are off; anything else is on.
 const isFlagSet = (value: string | undefined) => value !== undefined && !['', '0', 'false'].includes(value);
 
-const readReplyFromStdin = () => {
+// The reply to render and the session the terminal measurement is cached under (ADR-0008).
+const readHookInput = () => {
+  const empty = { reply: '', sessionId: '' };
   try {
     const hookInput: unknown = JSON.parse(readFileSync(0, 'utf8'));
-    if (typeof hookInput !== 'object' || hookInput === null || !('last_assistant_message' in hookInput)) return '';
-    return typeof hookInput.last_assistant_message === 'string' ? hookInput.last_assistant_message : '';
+    if (typeof hookInput !== 'object' || hookInput === null) return empty;
+    const reply = 'last_assistant_message' in hookInput && typeof hookInput.last_assistant_message === 'string' ? hookInput.last_assistant_message : '';
+    const sessionId = 'session_id' in hookInput && typeof hookInput.session_id === 'string' ? hookInput.session_id : '';
+    return { reply, sessionId };
   } catch (err) {
     logTrace('could not parse the hook input', err);
-    return '';
+    return empty;
   }
 };
 
@@ -44,19 +49,23 @@ const buildHookOutput = async (): Promise<HookOutput> => {
     return { systemMessage: `${PLUGIN_NAME}: Node ${NODE_MAJOR_REQUIRED} or newer required (found v${process.versions.node}), diagram not rendered.` };
   }
 
-  const blocks = extractDiagramBlocks(readReplyFromStdin());
+  const { reply, sessionId } = readHookInput();
+  const blocks = extractDiagramBlocks(reply);
   if (blocks.length === 0) return {};
 
+  // The override wins (ADR-0005), so a session that sets it never pays for measuring the terminal.
+  const overrideLimit = positiveInteger(process.env['MERMAID_FOR_CLAUDE_MAX_WIDTH']);
+  const terminal = overrideLimit === undefined ? measureTerminalWidth(sessionId) : ({ source: 'none' } satisfies TerminalWidth);
   const renderOptions = {
     useAscii: isFlagSet(process.env['MERMAID_FOR_CLAUDE_ASCII']),
-    widthLimit: resolveWidthLimit(process.env['MERMAID_FOR_CLAUDE_MAX_WIDTH']),
+    widthLimit: overrideLimit ?? widthLimitFor(terminal),
   };
   const results = (await renderWithDeadline(blocks, renderOptions)).map((timed) => ({
     ...timed,
     rendered: enforceWidthLimit(timed.rendered, renderOptions.widthLimit),
   }));
   const systemMessage = assemblePayload(results.map(({ rendered }) => rendered));
-  const timingLine = timingLineFor(results, { payloadLength: systemMessage.length, totalMs: elapsedSinceBundleStart(), options: renderOptions });
+  const timingLine = timingLineFor(results, { payloadLength: systemMessage.length, totalMs: elapsedSinceBundleStart(), options: renderOptions, terminal });
   process.stderr.write(`${timingLine}\n`);
   return { systemMessage };
 };
