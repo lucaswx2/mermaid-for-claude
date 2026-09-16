@@ -1,0 +1,23 @@
+mermaid-for-claude: diagram 1/1 (quadrantChart)
+Renderer options for mermaid-for-claude
+
+Faithful output
+┌────────────────────────────┬────────────────────────────┐
+│ Quick wins                 │                   Worth it │
+│                            │                ●    1      │
+│        ● beautiful-mermaid │     mermaid.parse plus DOM │
+│                 ● Crowded A│                            │
+│ Built-in S tier ●●         │  ● Built-in M tier         │
+│              Crowded B     │                            │
+├────────────────────────────┼────────────────────────────┤
+│                            │                            │
+│                            │                            │
+│                            │                            │
+│                            │                            │
+│   ● Notice only            │     ● Kroki                │
+│ Skip                       │              Only if asked │
+└────────────────────────────┴────────────────────────────┘
+Rough output
+Cheap to build                              Costly to build
+
+1 Sixel images

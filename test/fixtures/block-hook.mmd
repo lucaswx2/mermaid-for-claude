@@ -1,0 +1,10 @@
+block
+  columns 4
+  reply["assistant reply"]:4
+  hook["Stop hook (bash wrapper)"]:2 node["node >= 20 check"]:2
+  dispatcher["dispatcher"]:4
+  baseline["beautiful-mermaid"] builtin["built-in renderers"]:2 notice["notice"]
+  message["systemMessage, 9,800 chars"]:4
+  reply --> hook
+  hook --> dispatcher
+  dispatcher --> message

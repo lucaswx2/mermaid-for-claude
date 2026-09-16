@@ -1,0 +1,21 @@
+mermaid-for-claude: diagram 1/1 (quadrantChart)
+Reach and engagement of campaigns
+
+High Engagement
++-------------------------------+-------------------------------+
+| Need to promote               |              We should expand |
+|                               |                               |
+|                               |                               |
+|           Campaign F *        |                               |
+|                               |   * Campaign C                |
+|                   * Campaign A|                               |
++-------------------------------+-------------------------------+
+|                               |                               |
+|              Campaign E *     |                * Campaign D   |
+|                 Campaign B *  |                               |
+|                               |                               |
+|                               |                               |
+| Re-evaluate                   |               May be improved |
++-------------------------------+-------------------------------+
+Low Engagement
+Low Reach                                              High Reach

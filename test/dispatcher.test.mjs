@@ -95,16 +95,6 @@ describe('notice-only types', () => {
       assert.equal(output.systemMessage, notice('1/1', canonical, 'unsupported type'));
     });
   }
-
-  it('gives the unsupported type notice for a built-in type slot without a renderer yet', () => {
-    const { output } = runStopHook(fence('treemap\n    "Root"\n        "Leaf": 10\n'));
-    assert.equal(output.systemMessage, notice('1/1', 'treemap', 'unsupported type'));
-  });
-
-  it('prints the canonical name for a built-in slot spelled with a suffix', () => {
-    const { output } = runStopHook(fence('block-beta\n    a b c\n'));
-    assert.equal(output.systemMessage, notice('1/1', 'block', 'unsupported type'));
-  });
 });
 
 describe('unknown headers', () => {
