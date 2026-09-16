@@ -1,0 +1,18 @@
+mermaid-for-claude: diagram 1/1 (kanban)
++------------------------------+------------------------------+------------------------------+
+| Todo                         | In progress                  | Done                         |
++------------------------------+------------------------------+------------------------------+
+| Prototype M tier renderers   | Prototype S tier renderers   | Channel spike                |
+|                              |   #13 lucaswx2 High          |   #5                         |
+| Size policy prototype        |                              |                              |
+|   #15 High                   |                              | End-to-end render through    |
+|                              |                              | the hook                     |
+|                              |                              |   #7                         |
+|                              |                              |                              |
+|                              |                              | Coverage decision for the    |
+|                              |                              | remaining diagram types      |
+|                              |                              |   #10                        |
+|                              |                              |                              |
+|                              |                              | Size policy                  |
+|                              |                              |   #12                        |
++------------------------------+------------------------------+------------------------------+

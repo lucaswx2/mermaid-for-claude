@@ -3,9 +3,13 @@
 // headers and notices (spec #16). A baseline entry carries the header token the baseline renderer accepts;
 // a builtin entry carries the renderer written in this plugin for that type; a pending entry is a built-in
 // slot whose renderer has not landed yet; a notice entry only ever produces the `unsupported type` notice.
+import { renderGitGraph } from './renderers/git-graph.js';
 import { renderJourney } from './renderers/journey.js';
+import { renderKanban } from './renderers/kanban.js';
 import { renderMindmap } from './renderers/mindmap.js';
+import { renderPacket } from './renderers/packet.js';
 import { renderPie } from './renderers/pie.js';
+import { renderRadar } from './renderers/radar.js';
 import { renderTimeline } from './renderers/timeline.js';
 
 export type BuiltinInput = { headerLine: string; lines: string[]; widthLimit: number; useAscii: boolean };
@@ -32,13 +36,13 @@ export const DIAGRAM_TYPES: Readonly<Record<string, DiagramType>> = {
   xychart: baseline('xychart', 'xychart-beta'),
   // Built-in renderers (ADR-0006, ADR-0007); a pending slot becomes builtin with its own ticket.
   pie: builtin('pie', renderPie),
-  gitgraph: pending('gitGraph'),
+  gitgraph: builtin('gitGraph', renderGitGraph),
   mindmap: builtin('mindmap', renderMindmap),
   journey: builtin('journey', renderJourney),
   timeline: builtin('timeline', renderTimeline),
-  kanban: pending('kanban'),
-  packet: pending('packet'),
-  radar: pending('radar'),
+  kanban: builtin('kanban', renderKanban),
+  packet: builtin('packet', renderPacket),
+  radar: builtin('radar', renderRadar),
   gantt: pending('gantt'),
   quadrantchart: pending('quadrantChart'),
   block: pending('block'),
