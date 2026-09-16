@@ -1,0 +1,16 @@
+# Weekly dependency checks (ADR-0002: beautiful-mermaid is pinned and bundled into dist/, so a bump there
+# must come with a rebuilt dist and a full test run; the PR is the reminder). Security alerts arrive
+# regardless of the schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-tooling:
+        patterns: ["esbuild", "typescript", "@types/*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
