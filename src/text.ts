@@ -10,6 +10,11 @@ export const codePointLength = (text: string) => [...text].length;
 export const rtrim = (text: string) => text.replace(/\s+$/, '');
 export const padEnd = (text: string, width: number) => text + ' '.repeat(Math.max(0, width - codePointLength(text)));
 export const padStart = (text: string, width: number) => ' '.repeat(Math.max(0, width - codePointLength(text))) + text;
+export const center = (text: string, width: number) => {
+  const gap = Math.max(0, width - codePointLength(text));
+  const left = Math.floor(gap / 2);
+  return ' '.repeat(left) + text + ' '.repeat(gap - left);
+};
 export const widestRow = (rows: readonly string[]) => Math.max(0, ...rows.map(codePointLength));
 
 export const cut = (text: string, width: number, ellipsis: string) =>
