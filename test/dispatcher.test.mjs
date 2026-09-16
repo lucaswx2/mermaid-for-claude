@@ -97,7 +97,7 @@ describe('notice-only types', () => {
   }
 
   it('gives the unsupported type notice for a built-in type slot without a renderer yet', () => {
-    const { output } = runStopHook(fence('gantt\n    title Plan\n    A task : a1, 2026-01-01, 3d\n'));
+    const { output } = runStopHook(fence('treemap\n    "Root"\n        "Leaf": 10\n'));
     assert.equal(output.systemMessage, notice('1/1', 'treemap', 'unsupported type'));
   });
 
