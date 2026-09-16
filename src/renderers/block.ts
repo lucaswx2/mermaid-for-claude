@@ -3,7 +3,8 @@
 // under the grid as `A ──▶ B  label`, never drawn as lines. Subset: `block` / `block-beta`, `columns N|auto`,
 // `id`, `id["label"]` in any bracket shape, `id:N`, `space[:N]`, `block[:id[:N]] ... end` with its own
 // `columns`, `id<["label"]>(dir[, dir])` with `right left up down x y`, edges `a --> b`, `a --- b`,
-// `a -- "x" --> b`, `a -->|x| b`; `style` / `classDef` / `class` lines ignored; HTML entities decoded.
+// `a -- "x" --> b`, `a -->|x| b` (a link is two or more of `-=.`, so a hyphenated id alone on a line stays a box);
+// `style` / `classDef` / `class` lines ignored; HTML entities decoded.
 // `columns auto` or no `columns` line puts every block of the level on one row, as mermaid does; a span
 // that does not fit the row wraps to the next one.
 import type { BuiltinInput } from '../diagram-types.js';
@@ -12,18 +13,19 @@ import { glyphsFor } from '../glyphs.js';
 import { center, cut, padEnd, RenderError, unsupportedLine, widestRow, wrap } from '../text.js';
 
 type Direction = 'right' | 'left' | 'up' | 'down' | 'x' | 'y';
-type Item =
+type Block =
   | { kind: 'space'; span: number }
   | { kind: 'node'; id: string; label: string; span: number }
   | { kind: 'arrow'; id: string; label: string; directions: Direction[]; span: number }
-  | { kind: 'block'; id: string; columns: number | undefined; children: Item[]; span: number };
+  | { kind: 'nested'; id: string; columns: number | undefined; children: Block[]; span: number };
+type Nested = Block & { kind: 'nested' };
 type Edge = { from: string; to: string; arrow: boolean; label: string };
-type Cell = { item: Item; row: number; col: number; span: number; lines: string[]; width: number };
+type Cell = { block: Block; row: number; col: number; span: number; lines: string[]; width: number };
 
 const ID = String.raw`\w+(?:-\w+)*`;
 const COLUMNS = /^columns\s+(\d+|auto)$/i;
 const BLOCK_OPEN = new RegExp(`^block(?::(${ID}))?(?::(\\d+))?$`, 'i');
-const EDGE = new RegExp(`^(${ID})\\s*([-=.]+)(?:\\s*"([^"]*)"\\s*([-=.]+))?\\s*(>?)\\s*(?:\\|([^|]*)\\|\\s*)?(${ID})$`);
+const EDGE = new RegExp(`^(${ID})\\s*([-=.]{2,})(?:\\s*"([^"]*)"\\s*([-=.]{2,}))?\\s*(>?)\\s*(?:\\|([^|]*)\\|\\s*)?(${ID})$`);
 const SPACE = /^space(?::(\d+))?$/;
 const ARROW = new RegExp(`^(${ID})<\\[(.*)\\]>\\(([^)]*)\\)(?::(\\d+))?$`);
 const NODE = new RegExp(`^(${ID})?(.*?)(?::(\\d+))?$`);
@@ -77,7 +79,7 @@ const tokenize = (line: string) => {
 
 const spanOf = (text: string | undefined) => Math.max(1, Number(text ?? 1));
 
-const parseItem = (token: string): Item | undefined => {
+const parseBlock = (token: string): Block | undefined => {
   const space = token.match(SPACE);
   if (space) return { kind: 'space', span: spanOf(space[1]) };
   const arrow = token.match(ARROW);
@@ -103,8 +105,8 @@ const ARROW_TEXT: Readonly<Record<Direction, (text: string, glyphs: Glyphs) => s
 };
 
 const parseDiagram = (lines: string[], ellipsis: string) => {
-  const root: Item & { kind: 'block' } = { kind: 'block', id: '', columns: undefined, children: [], span: 1 };
-  const open: (Item & { kind: 'block' })[] = [root];
+  const root: Nested = { kind: 'nested', id: '', columns: undefined, children: [], span: 1 };
+  const open: Nested[] = [root];
   const edges: Edge[] = [];
   for (const raw of lines) {
     const line = raw.trim();
@@ -118,9 +120,9 @@ const parseDiagram = (lines: string[], ellipsis: string) => {
     }
     const nested = line.match(BLOCK_OPEN);
     if (nested) {
-      const block: Item & { kind: 'block' } = { kind: 'block', id: nested[1] ?? '', columns: undefined, children: [], span: spanOf(nested[2]) };
-      current.children.push(block);
-      open.push(block);
+      const child: Nested = { kind: 'nested', id: nested[1] ?? '', columns: undefined, children: [], span: spanOf(nested[2]) };
+      current.children.push(child);
+      open.push(child);
       continue;
     }
     if (/^end$/i.test(line)) {
@@ -134,9 +136,9 @@ const parseDiagram = (lines: string[], ellipsis: string) => {
       continue;
     }
     for (const token of tokenize(line)) {
-      const item = parseItem(token);
-      if (!item) throw unsupportedLine(line, ellipsis);
-      current.children.push(item);
+      const block = parseBlock(token);
+      if (!block) throw unsupportedLine(line, ellipsis);
+      current.children.push(block);
     }
   }
   if (open.length > 1) throw new RenderError('block without end');
@@ -158,19 +160,19 @@ const columnWidths = (cells: Cell[], columns: number) => {
 };
 
 // Lays a block's children on its grid and returns the text rows; a nested block recurses with the same cap.
-const layout = (block: Item & { kind: 'block' }, cellWidthCap: number, glyphs: Glyphs): string[] => {
-  const columns = block.columns ?? Math.max(1, block.children.reduce((sum, child) => sum + child.span, 0));
+const layout = (nested: Nested, cellWidthCap: number, glyphs: Glyphs): string[] => {
+  const columns = nested.columns ?? Math.max(1, nested.children.reduce((sum, child) => sum + child.span, 0));
   const cells: Cell[] = [];
   let row = 0;
   let cursor = 0;
-  for (const item of block.children) {
-    const span = Math.min(item.span, columns);
+  for (const block of nested.children) {
+    const span = Math.min(block.span, columns);
     if (cursor + span > columns) {
       row += 1;
       cursor = 0;
     }
-    const lines = item.kind === 'node' ? (item.label ? wrap(item.label, cellWidthCap) : ['']) : item.kind === 'arrow' ? [cut(item.directions.reduce((text, direction) => ARROW_TEXT[direction](text, glyphs), item.label), cellWidthCap, glyphs.ellipsis)] : item.kind === 'block' ? layout(item, cellWidthCap, glyphs) : [];
-    cells.push({ item, row, col: cursor, span, lines, width: widestRow(lines) });
+    const lines = block.kind === 'node' ? (block.label ? wrap(block.label, cellWidthCap) : ['']) : block.kind === 'arrow' ? [cut(block.directions.reduce((text, direction) => ARROW_TEXT[direction](text, glyphs), block.label), cellWidthCap, glyphs.ellipsis)] : block.kind === 'nested' ? layout(block, cellWidthCap, glyphs) : [];
+    cells.push({ block, row, col: cursor, span, lines, width: widestRow(lines) });
     cursor += span;
   }
   const widths = columnWidths(cells, columns);
@@ -187,39 +189,39 @@ const layout = (block: Item & { kind: 'block' }, cellWidthCap: number, glyphs: G
     const canvas = Array.from({ length: height + 2 }, () => Array<string>(gridWidth).fill(' '));
     const put = (y: number, x: number, text: string) => [...text].forEach((char, position) => (canvas[y]![x + position] = char));
     for (const cell of rowCells) {
-      if (cell.item.kind === 'space') continue;
+      if (cell.block.kind === 'space') continue;
       const x = offset(cell.col);
       const inner = offset(cell.col + cell.span) - COLUMN_GAP - x - 2;
       const top = Math.floor((height - cell.lines.length) / 2);
-      if (cell.item.kind === 'arrow') {
+      if (cell.block.kind === 'arrow') {
         put(1 + top, x + 1, center(cell.lines[0] ?? '', inner));
         continue;
       }
       put(0, x, glyphs.topLeft + glyphs.horizontal.repeat(inner) + glyphs.topRight);
       for (let y = 0; y < height; y += 1) {
         const text = cell.lines[y - top] ?? '';
-        const body = cell.item.kind === 'block' ? ` ${padEnd(text, inner - 1)}` : center(text, inner);
+        const body = cell.block.kind === 'nested' ? ` ${padEnd(text, inner - 1)}` : center(text, inner);
         put(1 + y, x, glyphs.vertical + body + glyphs.vertical);
       }
       put(height + 1, x, glyphs.bottomLeft + glyphs.horizontal.repeat(inner) + glyphs.bottomRight);
     }
     // A row with no box (arrows and spaces only) keeps just its middle lines.
-    const boxed = rowCells.some((cell) => cell.item.kind === 'node' || cell.item.kind === 'block');
+    const boxed = rowCells.some((cell) => cell.block.kind === 'node' || cell.block.kind === 'nested');
     rows.push(...(boxed ? canvas : canvas.slice(1, 1 + height)).map((line) => line.join('')));
   }
   return rows;
 };
 
-const labelsById = (block: Item & { kind: 'block' }, names = new Map<string, string>()) => {
-  for (const child of block.children) {
-    if (child.kind === 'block') labelsById(child, names);
+const labelsById = (nested: Nested, names = new Map<string, string>()) => {
+  for (const child of nested.children) {
+    if (child.kind === 'nested') labelsById(child, names);
     else if (child.kind !== 'space' && child.id) names.set(child.id, child.label || child.id);
   }
   return names;
 };
 
 // The widest cell cap on the ladder whose grid fits the width limit.
-const fittedLayout = (root: Item & { kind: 'block' }, widthLimit: number, glyphs: Glyphs) => {
+const fittedLayout = (root: Nested, widthLimit: number, glyphs: Glyphs) => {
   for (const cap of CELL_WIDTH_LADDER) {
     const rows = layout(root, cap, glyphs);
     if (widestRow(rows) <= widthLimit) return rows;

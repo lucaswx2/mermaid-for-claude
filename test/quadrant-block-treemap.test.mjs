@@ -169,6 +169,12 @@ describe('block', () => {
     assert.equal(unknown.output.systemMessage, notice('block', 'unsupported line: a --> b --> c'));
   });
 
+  it('keeps a hyphenated id alone on a line as a box, not an edge', () => {
+    const { output } = runStopHook(fence('block\n    columns 1\n    api-gateway\n    auth-service\n    api-gateway --> auth-service\n'), WIDE);
+    assert.match(output.systemMessage, /│ api-gateway {2}│\n[^\n]*\n[^\n]*\n│ auth-service │/);
+    assert.match(output.systemMessage, /\n\napi-gateway ──▶ auth-service$/);
+  });
+
   it('gives a notice for a block without end', () => {
     const { output } = runStopHook(fence('block\n    block:x\n      a\n'), WIDE);
     assert.equal(output.systemMessage, notice('block', 'block without end'));
