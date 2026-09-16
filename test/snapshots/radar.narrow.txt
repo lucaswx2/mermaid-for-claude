@@ -1,0 +1,10 @@
+mermaid-for-claude: diagram 1/1 (radar)
+Renderer fit per type
+
+                 baseline      built-in      notice only
+Readable         ████████░░ 4  ████████░░ 4  ██░░░░░░░░ 1
+Keeps the point  ██████████ 5  ██████░░░░ 3  ░░░░░░░░░░ 0
+Labels intact    ████████░░ 4  ██████████ 5  ░░░░░░░░░░ 0
+Width            ████░░░░░░ 2  ██████████ 5  ██████████ 5
+Speed            ██████████ 5  ██████████ 5  ██████████ 5
+                 scale 0 to 5

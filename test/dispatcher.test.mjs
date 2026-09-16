@@ -97,13 +97,13 @@ describe('notice-only types', () => {
   }
 
   it('gives the unsupported type notice for a built-in type slot without a renderer yet', () => {
-    const { output } = runStopHook(fence('gitGraph\n    commit\n    commit\n'));
-    assert.equal(output.systemMessage, notice('1/1', 'gitGraph', 'unsupported type'));
+    const { output } = runStopHook(fence('gantt\n    title Plan\n    A task : a1, 2026-01-01, 3d\n'));
+    assert.equal(output.systemMessage, notice('1/1', 'gantt', 'unsupported type'));
   });
 
   it('prints the canonical name for a built-in slot spelled with a suffix', () => {
-    const { output } = runStopHook(fence('packet-beta\n    0-15: "Source Port"\n'));
-    assert.equal(output.systemMessage, notice('1/1', 'packet', 'unsupported type'));
+    const { output } = runStopHook(fence('block-beta\n    a b c\n'));
+    assert.equal(output.systemMessage, notice('1/1', 'block', 'unsupported type'));
   });
 });
 

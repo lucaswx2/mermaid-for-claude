@@ -1,0 +1,15 @@
+gitGraph
+    commit id: "scaffold"
+    commit id: "adr-0001" tag: "v0.1"
+    branch prototype/end-to-end
+    checkout prototype/end-to-end
+    commit id: "e2e hook"
+    commit id: "samples"
+    checkout main
+    commit id: "adr-0002"
+    merge prototype/end-to-end id: "merge e2e" tag: "v0.2"
+    branch research/parser
+    commit id: "spike"
+    checkout main
+    commit id: "adr-0003" type: HIGHLIGHT
+    commit id: "adr-0004"

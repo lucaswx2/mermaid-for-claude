@@ -1,0 +1,15 @@
+gitGraph LR:
+    commit
+    commit
+    branch develop
+    commit
+    commit
+    checkout main
+    commit
+    merge develop
+    commit
+    branch hotfix
+    commit type: REVERSE
+    checkout main
+    cherry-pick id: "abc123"
+    merge hotfix tag: "v1.0.1"

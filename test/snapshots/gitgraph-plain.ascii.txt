@@ -1,0 +1,14 @@
+mermaid-for-claude: diagram 1/1 (gitGraph)
+main
+o
+o
++-+    branch develop
+| o
+| o
+o |
+M-+    merge develop
+o
++---+  branch hotfix
+|   x
+o   |  cherry-pick abc123
+M---+  merge hotfix [v1.0.1]
