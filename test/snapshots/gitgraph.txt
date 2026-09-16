@@ -1,0 +1,13 @@
+mermaid-for-claude: diagram 1/1 (gitGraph)
+main
+●      scaffold
+●      adr-0001 [v0.1]
+├─┐    branch prototype/end-to-end
+│ ●    e2e hook
+│ ●    samples
+● │    adr-0002
+◆─┘    merge prototype/end-to-end merge e2e [v0.2]
+├───┐  branch research/parser
+│   ●  spike
+◉      adr-0003
+●      adr-0004

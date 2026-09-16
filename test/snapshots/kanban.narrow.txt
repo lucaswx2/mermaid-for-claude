@@ -1,0 +1,21 @@
+mermaid-for-claude: diagram 1/1 (kanban)
+┌──────────────────┬──────────────────┬──────────────────┐
+│ Todo             │ In progress      │ Done             │
+├──────────────────┼──────────────────┼──────────────────┤
+│ Prototype M tier │ Prototype S tier │ Channel spike    │
+│ renderers        │ renderers        │   #5             │
+│                  │   #13 lucaswx2   │                  │
+│ Size policy      │   High           │ End-to-end       │
+│ prototype        │                  │ render through   │
+│   #15 High       │                  │ the hook         │
+│                  │                  │   #7             │
+│                  │                  │                  │
+│                  │                  │ Coverage         │
+│                  │                  │ decision for the │
+│                  │                  │ remaining        │
+│                  │                  │ diagram types    │
+│                  │                  │   #10            │
+│                  │                  │                  │
+│                  │                  │ Size policy      │
+│                  │                  │   #12            │
+└──────────────────┴──────────────────┴──────────────────┘

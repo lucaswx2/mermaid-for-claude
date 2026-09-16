@@ -20,7 +20,7 @@ const trimRows = (rows: string[]) => {
   return body;
 };
 
-// The render step for an entry that has a renderer, or undefined when the entry is notice-only or pending.
+// The render step for an entry that has a renderer, or undefined when the entry is notice-only.
 // The baseline header token is rewritten to what the renderer accepts (`classDiagram-v2` to `classDiagram`,
 // `flowchart: TD` to `flowchart TD`); the rest of the line stays.
 const rendererFor = (entry: DiagramType, headerLine: string, lines: string[], options: RenderOptions) => {

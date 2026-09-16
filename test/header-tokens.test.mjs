@@ -1,6 +1,6 @@
 // Coverage of the type table through the Stop hook seam (ticket #26, ADR-0004, ADR-0006, ADR-0007): every key of
 // DIAGRAM_TYPES gets a minimal block and the result its kind promises (baseline and built-in render, notice-only
-// gives `unsupported type`; a pending slot fails here until its renderer lands), and every recommended type
+// gives `unsupported type`), and every recommended type
 // renders its fixture at 120 columns. The key list is a copy of src/diagram-types.ts; the counts keep it honest.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';

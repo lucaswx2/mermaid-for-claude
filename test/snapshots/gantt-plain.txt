@@ -1,0 +1,18 @@
+mermaid-for-claude: diagram 1/1 (gantt)
+mermaid-for-claude v1 plan
+
+                        Sep 10 Sep 11 Sep 12  Sep 13 Sep 14 Sep 15  Sep 16 Sep 17  Sep 18 Sep 19 Sep 20  Sep 21 Sep 22
+                        ┼──────┼──────┼───────┼──────┼──────┼───────┼──────┼───────┼──────┼──────┼───────┼──────┼───────
+Charting
+  Map and research      ░░░░░░░
+  ADR-0001 to ADR-0003         ░░░░░░░
+Prototypes
+  S tier renderers                    ░░░░░░░░
+  M tier renderers                            ▒▒▒▒▒▒▒
+  Size policy in TUI                                 ███████████████
+Release
+  Spec via to-spec                                                  ███████████████
+  Build and CI                                                                     █████████████████████████████████████
+  Publish v1                                                                                                           ◆
+
+                        █ planned   ░ done   ▒ active   ◆ milestone
