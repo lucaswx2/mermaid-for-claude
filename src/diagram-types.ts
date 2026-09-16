@@ -3,10 +3,13 @@
 // headers and notices (spec #16). A baseline entry carries the header token the baseline renderer accepts;
 // a builtin entry carries the renderer written in this plugin for that type; a pending entry is a built-in
 // slot whose renderer has not landed yet; a notice entry only ever produces the `unsupported type` notice.
+import { renderBlockDiagram } from './renderers/block.js';
 import { renderJourney } from './renderers/journey.js';
 import { renderMindmap } from './renderers/mindmap.js';
 import { renderPie } from './renderers/pie.js';
+import { renderQuadrant } from './renderers/quadrant.js';
 import { renderTimeline } from './renderers/timeline.js';
+import { renderTreemap } from './renderers/treemap.js';
 
 export type BuiltinInput = { headerLine: string; lines: string[]; widthLimit: number; useAscii: boolean };
 export type BuiltinRender = (input: BuiltinInput) => string[];
@@ -40,9 +43,9 @@ export const DIAGRAM_TYPES: Readonly<Record<string, DiagramType>> = {
   packet: pending('packet'),
   radar: pending('radar'),
   gantt: pending('gantt'),
-  quadrantchart: pending('quadrantChart'),
-  block: pending('block'),
-  treemap: pending('treemap'),
+  quadrantchart: builtin('quadrantChart', renderQuadrant),
+  block: builtin('block', renderBlockDiagram),
+  treemap: builtin('treemap', renderTreemap),
   // Notice-only in v1 (ADR-0004).
   requirementdiagram: notice('requirementDiagram'),
   c4context: notice('C4'),
