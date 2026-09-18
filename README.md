@@ -15,9 +15,9 @@ Claude writes:
 ````
 ```mermaid
 flowchart TD
-    A[Start] --> B{Ok?}
-    B -- yes --> C[Done]
-    B -- no --> A
+    A[Reply arrives] --> B{Has mermaid?}
+    B -- yes --> C[Render diagram]
+    B -- no --> D[Do nothing]
 ```
 ````
 
@@ -25,21 +25,21 @@ The terminal shows, under the reply:
 
 ```
 mermaid-for-claude: diagram 1/1 (flowchart)
-┌─────┐
-│Start│
-└──┬──┘
-   ▲
-   │
-  no
-◇──┴──◇
-│ Ok? │
-◇──┬──◇
-  yes
-   │
-   ▼
-┌─────┐
-│ Done│
-└─────┘
+┌──────────────┐
+│Reply arrives │
+└───────┬──────┘
+        │
+        │
+        ▼
+◇──────────────◇
+│ Has mermaid? ├─────────┐
+◇───────┬──────◇        no
+       yes               │
+        │                │
+        ▼                ▼
+┌──────────────┐   ┌──────────┐
+│Render diagram│   │Do nothing│
+└──────────────┘   └──────────┘
 ```
 
 A user journey:
