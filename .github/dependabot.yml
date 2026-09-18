@@ -14,3 +14,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The scanner action publishes several patch releases a day. Reviewing a weekly SHA bump
+    # is the step SHA-pinning exists to force, so patches that nobody reads are worse than
+    # none; minor and major still open a PR.
+    ignore:
+      - dependency-name: "hashgraph-online/ai-plugin-scanner-action"
+        update-types: ["version-update:semver-patch"]

@@ -1,0 +1,26 @@
+name: security scan
+
+on:
+  # push is scoped to main: an unfiltered push plus pull_request runs every job twice
+  # on a branch that has a PR open.
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party action, so both steps are pinned to immutable commit SHAs:
+      # a mutable tag could silently change the code this workflow executes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashgraph-online/ai-plugin-scanner-action@caba2e96aa8ad2feb6cf6fca52442b52e22e779f # v1.2.635
+        with:
+          plugin_dir: "."
+          min_score: 80
+          fail_on_severity: high
