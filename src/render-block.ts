@@ -6,6 +6,7 @@ import { readHeader } from './diagram-header.js';
 import type { DiagramType } from './diagram-types.js';
 import { rtrim } from './text.js';
 import { firstErrorLine, logTrace } from './trace.js';
+import { widestRowInCodePoints } from './width-limit.js';
 
 // Compact padding (ADR-0005); no colour because systemMessage shows none (ADR-0002).
 const BASELINE_OPTIONS = { colorMode: 'none', paddingY: 3, paddingX: 3, boxBorderPadding: 0 } as const;
@@ -34,6 +35,33 @@ const rendererFor = (entry: DiagramType, headerLine: string, lines: string[], op
   return undefined;
 };
 
+// A flowchart grows sideways with its siblings: unlinked nodes in a TD subgraph sit side by side, so
+// seven cards overflow a 120-column window that fits them easily one under another. When the header's
+// direction draws too wide, the other axis is tried once; the second render is used only when it fits.
+// Subgraph `direction` lines are left alone.
+const FLIPPED_DIRECTION: Readonly<Record<string, string>> = { TD: 'LR', TB: 'LR', BT: 'RL', LR: 'TD', RL: 'BT' };
+
+const flippedFlowchartHeader = (headerLine: string) => {
+  const match = /^(\S+)\s+(TD|TB|BT|LR|RL)\s*;?\s*$/i.exec(headerLine.trim());
+  if (!match?.[2]) return undefined;
+  const flipped = FLIPPED_DIRECTION[match[2].toUpperCase()];
+  return flipped === undefined ? undefined : `${match[1]} ${flipped}`;
+};
+
+const fitFlowchart = (entry: DiagramType, headerLine: string, lines: string[], options: RenderOptions, body: string[]) => {
+  if (entry.name !== 'flowchart' || widestRowInCodePoints(body.join('\n')) <= options.widthLimit) return body;
+  const flippedHeader = flippedFlowchartHeader(headerLine);
+  const render = flippedHeader === undefined ? undefined : rendererFor(entry, flippedHeader, lines, options);
+  if (!render) return body;
+  try {
+    const flipped = trimRows(render());
+    return flipped.length > 0 && widestRowInCodePoints(flipped.join('\n')) <= options.widthLimit ? flipped : body;
+  } catch (err) {
+    logTrace('rendering a flowchart block with its direction flipped failed', err);
+    return body;
+  }
+};
+
 export const renderBlock = (source: string, options: RenderOptions): Rendered => {
   const { headerLine, lines, token, entry } = readHeader(source);
   if (!entry) return { kind: 'notice', type: token || 'unknown', reason: 'unsupported type' };
@@ -42,7 +70,7 @@ export const renderBlock = (source: string, options: RenderOptions): Rendered =>
   if (!render) return { kind: 'notice', type: entry.name, reason: 'unsupported type' };
 
   try {
-    const body = trimRows(render());
+    const body = fitFlowchart(entry, headerLine, lines, options, trimRows(render()));
     if (body.length === 0) return { kind: 'notice', type: entry.name, reason: 'empty output' };
     return { kind: 'diagram', type: entry.name, body: body.join('\n') };
   } catch (err) {

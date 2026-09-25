@@ -127,7 +127,7 @@ Three environment variables. No config file.
 
 ## How it behaves
 
-- **Width.** Diagrams fit the width of the terminal window you have open, minus the indent of the `Stop says:` block, read on every reply. A baseline diagram wider than that becomes a notice; built-in renderers fit themselves inside it.
+- **Width.** Diagrams fit the width of the terminal window you have open, minus the indent of the `Stop says:` block, read on every reply. A flowchart too wide in its own direction is drawn once more with the direction flipped (TD to LR, LR to TD); a baseline diagram still wider than that becomes a notice; built-in renderers fit themselves inside it.
 - **Output budget.** One reply may add at most 9,800 characters of diagrams and notices. A diagram that does not fit the remaining budget becomes a notice. Never a partial diagram, never a file.
 - **Render deadline.** 3 seconds per diagram, 7 seconds per reply. A slow diagram becomes a notice and the next one is still tried.
 - **Notices.** One line each, under the same header as a diagram: unsupported type, unsupported line, too wide, over budget, over the deadline, Node missing.
