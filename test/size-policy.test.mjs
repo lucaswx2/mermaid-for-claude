@@ -60,9 +60,22 @@ describe('width limit', () => {
     assert.match(fits.output.systemMessage, /end 𝒵/);
     assert.equal(widestRow(fits.output.systemMessage.split('\n').slice(1).join('\n')), 30);
 
-    const tooWide = runStopHook(fence(fixture('size-astral')), { MERMAID_FOR_CLAUDE_MAX_WIDTH: '29' });
-    assert.equal(tooWide.output.systemMessage, 'mermaid-for-claude: could not render diagram 1/1 (flowchart): 30 columns wide, limit is 29');
+    // 18 columns: the LR render is 30 wide and the flipped TD one 19, so neither fits.
+    const tooWide = runStopHook(fence(fixture('size-astral')), { MERMAID_FOR_CLAUDE_MAX_WIDTH: '18' });
+    assert.equal(tooWide.output.systemMessage, 'mermaid-for-claude: could not render diagram 1/1 (flowchart): 30 columns wide, limit is 18');
   });
+
+  it('renders a flowchart too wide in its own direction with the direction flipped', () => {
+    const { output } = runStopHook(fence(fixture('size-flowchart-siblings')), { MERMAID_FOR_CLAUDE_MAX_WIDTH: '120' });
+    assert.equal(output.systemMessage, snapshot('size-flowchart-siblings'));
+    assert.ok(widestRow(output.systemMessage) <= 120);
+  });
+
+  it('keeps the direction as written when it fits', () => {
+    const { output } = runStopHook(fence(fixture('size-flowchart-siblings')), { MERMAID_FOR_CLAUDE_MAX_WIDTH: '200' });
+    assert.ok(widestRow(output.systemMessage) > 120, 'the TD render lays the seven cards side by side');
+  });
+
 
   it('checks each block on its own: a wide block becomes a notice and the next one still renders', () => {
     const reply = `${fence(fixture('size-sequence-wide'))}\n${fence(fixture('size-small'))}`;

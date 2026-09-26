@@ -18,7 +18,7 @@ export const widthLimitFor = (terminal: TerminalWidth) =>
 
 // Width is the widest row in code points (ADR-0005): emoji are banned, so no wide-glyph handling, but
 // a surrogate pair is still one column, hence the spread instead of `.length`.
-const widestRowInCodePoints = (body: string) => Math.max(...body.split('\n').map((row) => [...row].length));
+export const widestRowInCodePoints = (body: string) => Math.max(...body.split('\n').map((row) => [...row].length));
 
 // Measured after rendering, on what came back: the renderer itself is never trusted to fit.
 export const enforceWidthLimit = (rendered: Rendered, widthLimit: number): Rendered => {
